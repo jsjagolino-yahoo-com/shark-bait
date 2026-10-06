@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shark Bait · Game Master</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/display.css">
+  <style>
+    #controls {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%);
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px;
+      padding: 10px 14px; z-index: 10; max-width: calc(100vw - 32px);
+    }
+    #controls button {
+      border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 800;
+      background: rgba(255,255,255,0.15); color: var(--foam);
+    }
+    #controls button:disabled { opacity: 0.4; cursor: default; }
+    #controls #startBtn { background: var(--gold); color: var(--ink); font-size: 18px; }
+    #controls #resetBtn { background: rgba(255,45,85,0.35); }
+    #controls label { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+    #controls input[type=number] { width: 56px; font: inherit; padding: 6px; border-radius: 8px; border: 0; text-align: center; }
+    #msgLine { width: 100%; text-align: center; font-size: 13px; color: #ffb3c1; min-height: 0; }
+    #msgLine:empty { display: none; }
+    body.hideControls #controls, body.hideControls #drawer { display: none; }
+    body:not(.authed) #controls { display: none; }
+
+    body.inRound #controls { opacity: 0.35; transition: opacity 0.3s; }
+    body.inRound #controls:hover, body.inRound #controls:focus-within { opacity: 1; }
+
+    #drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: min(360px, 90vw);
+      z-index: 11; padding: 16px; overflow-y: auto; border-radius: 18px 0 0 18px;
+    }
+    #drawer h3 { margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; }
+    #drawer h3 button { background: none; border: 0; color: var(--foam); font-size: 22px; }
+    .prow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .prow .pn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+    .prow .ps { font-size: 12px; opacity: 0.75; white-space: nowrap; }
+    .prow button { background: rgba(255,45,85,0.3); color: #fff; border: 0; border-radius: 8px; padding: 4px 9px; font-weight: 800; }
+
+    #auth { position: fixed; inset: 0; display: grid; place-items: center; z-index: 20; background: rgba(0,10,25,0.6); }
+    #auth form { padding: 28px; display: flex; flex-direction: column; gap: 12px; width: min(360px, 90vw); text-align: center; }
+    #auth input { font: inherit; font-size: 18px; padding: 12px; border-radius: 10px; border: 0; text-align: center; }
+    #auth button { font-size: 18px; font-weight: 900; padding: 12px; border: 0; border-radius: 10px; background: var(--gold); color: var(--ink); }
+  </style>
+</head>
+<body data-role="host">
+  <div id="controls" class="panel">
+    <button id="startBtn" type="button">▶ Start game</button>
+    <button id="resetBtn" type="button">↺ Reset to lobby</button>
+    <label>Eaten per round <input id="elim" type="number" min="1" max="50" value="5"></label>
+    <label><input id="focus" type="checkbox" checked> Zoom on near-death</label>
+    <button id="playersBtn" type="button">👥 Players</button>
+    <button id="hideBtn" type="button" title="Press H to show again">Hide (H)</button>
+    <div id="msgLine"></div>
+  </div>
+
+  <aside id="drawer" class="panel hidden">
+    <h3><span id="drawerTitle">Players</span><button id="closeDrawer" type="button">✕</button></h3>
+    <div id="plist"></div>
+  </aside>
+
+  <div id="auth" class="hidden">
+    <form id="authForm" class="panel">
+      <h2 class="title" style="margin:0">🦈 Game Master</h2>
+      <input id="keyInput" type="password" placeholder="Host key" autocomplete="off">
+      <button type="submit">Enter</button>
+      <div id="authErr" class="err" style="color:#ffb3c1"></div>
+    </form>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/art.js"></script>
+  <script src="/display.js"></script>
+  <script src="/host.js"></script>
+</body>
+</html>

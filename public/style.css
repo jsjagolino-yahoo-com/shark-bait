@@ -1,0 +1,65 @@
+:root {
+  --ink: #04263f;
+  --sea: #0277bd;
+  --foam: #e8f8ff;
+  --danger: #ff2d55;
+  --gold: #ffc93c;
+  --ok: #2ee59d;
+  --panel: rgba(2, 24, 48, 0.82);
+  --font: 'Trebuchet MS', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #00152e;
+  color: var(--foam);
+  font-family: var(--font);
+  overflow: hidden;
+}
+
+canvas { display: block; }
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.hidden { display: none !important; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.title {
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+}
+
+.chip {
+  display: inline-block;
+  padding: 4px 12px;
+  margin: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 700;
+}
+
+.chip.dead { background: rgba(255, 45, 85, 0.3); }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}

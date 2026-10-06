@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#01386b">
+  <title>Shark Bait</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    html, body {
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #joinView {
+      position: fixed; inset: 0;
+      display: grid; place-items: center;
+      padding: 16px;
+      background: linear-gradient(#29b6f6, #0277bd 45%, #01386b 80%, #00152e);
+      touch-action: manipulation;
+    }
+    .joinCard { width: min(420px, 100%); padding: 28px 22px; text-align: center; }
+    .joinCard h1 { font-size: 40px; margin: 0 0 6px; }
+    .joinCard p { margin: 0 0 20px; opacity: 0.85; line-height: 1.4; }
+    #joinForm { display: flex; flex-direction: column; gap: 12px; }
+    #name {
+      font: inherit; font-size: 20px; font-weight: 700;
+      padding: 14px 16px; border-radius: 14px; border: 0;
+      color: var(--ink); text-align: center;
+      -webkit-user-select: text; user-select: text;
+    }
+    #joinForm button {
+      font-size: 22px; font-weight: 900; padding: 14px;
+      border: 0; border-radius: 14px;
+      background: var(--gold); color: var(--ink);
+      box-shadow: 0 5px 0 #c08e00;
+    }
+    #joinForm button:active { transform: translateY(3px); box-shadow: 0 2px 0 #c08e00; }
+    .err { color: #ffb3c1; min-height: 1.2em; margin-top: 12px !important; font-weight: 700; }
+
+    #gameView { position: fixed; inset: 0; background: linear-gradient(#01386b, #0277bd); }
+    #c { position: absolute; left: 0; right: 0; bottom: 0; top: 30%; width: 100%; height: 70%; }
+    #top {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+      font-weight: 800; color: var(--foam);
+      pointer-events: none;
+    }
+    #meName { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #info { font-size: 14px; text-align: right; white-space: nowrap; }
+    #msg {
+      position: absolute; left: 12px; right: 12px; top: calc(max(10px, env(safe-area-inset-top)) + 34px);
+      text-align: center; pointer-events: none;
+      text-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    }
+    #big { font-size: clamp(30px, 10vw, 54px); font-weight: 900; line-height: 1.05; }
+    #small { font-size: 17px; font-weight: 700; margin-top: 8px; line-height: 1.35; }
+    #msg.danger #small { color: #fff; background: var(--danger); display: inline-block; padding: 8px 14px; border-radius: 12px; animation: flash 0.5s infinite; }
+    #msg.tap #big { animation: pulse 0.35s infinite; }
+    #leaveBtn {
+      position: absolute; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+      background: rgba(255,255,255,0.15); color: var(--foam);
+      border: 1px solid rgba(255,255,255,0.3); border-radius: 999px; padding: 8px 18px;
+      font-weight: 700;
+    }
+    #conn {
+      position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+      background: var(--danger); color: #fff; font-weight: 800; padding: 6px 14px; border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <section id="joinView">
+    <div class="joinCard panel">
+      <h1 class="title">🦈 Shark Bait</h1>
+      <p>Tap your screen as fast as you can to stay afloat.<br>Slow swimmers become shark lunch!</p>
+      <form id="joinForm" autocomplete="off">
+        <input id="name" maxlength="16" placeholder="Your name" enterkeyhint="go" autocomplete="off" autocapitalize="words">
+        <button type="submit">Jump in!</button>
+      </form>
+      <p id="joinErr" class="err"></p>
+    </div>
+  </section>
+
+  <section id="gameView" class="hidden">
+    <canvas id="c"></canvas>
+    <div id="top"><span id="meName"></span><span id="info"></span></div>
+    <div id="msg"><div id="big"></div><div id="small"></div></div>
+    <div id="conn" class="hidden">Reconnecting…</div>
+    <button id="leaveBtn" type="button">Change name</button>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/art.js"></script>
+  <script src="/player.js"></script>
+</body>
+</html>
