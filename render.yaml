@@ -9,3 +9,13 @@ services:
     envVars:
       - key: HOST_KEY
         sync: false
+  - type: web
+    name: beat-em-up
+    runtime: node
+    rootDir: beatemup
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    envVars:
+      - key: HOST_KEY
+        sync: false

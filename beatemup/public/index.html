@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#140c26">
+  <title>Beat 'Em Up</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    html, body {
+      touch-action: none;
+      overscroll-behavior: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #joinView {
+      position: fixed; inset: 0; display: grid; place-items: center; padding: 16px;
+      background: radial-gradient(circle at 50% 30%, #3b1f6e, #140c26 70%);
+      touch-action: manipulation;
+    }
+    .joinCard { width: min(420px, 100%); padding: 28px 22px; text-align: center; }
+    .joinCard h1 { font-size: 38px; margin: 0 0 6px; }
+    .joinCard p { margin: 0 0 20px; opacity: 0.85; line-height: 1.4; }
+    #joinForm { display: flex; flex-direction: column; gap: 12px; }
+    #name {
+      font: inherit; font-size: 20px; font-weight: 700; padding: 14px 16px;
+      border-radius: 14px; border: 0; color: var(--ink); text-align: center;
+      -webkit-user-select: text; user-select: text;
+    }
+    #joinForm button {
+      font-size: 22px; font-weight: 900; padding: 14px; border: 0; border-radius: 14px;
+      background: var(--hot); color: #fff; box-shadow: 0 5px 0 #a3142f;
+    }
+    #joinForm button:active { transform: translateY(3px); box-shadow: 0 2px 0 #a3142f; }
+    .err { color: #ffb3c1; min-height: 1.2em; margin-top: 12px !important; font-weight: 700; }
+
+    #padView {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      padding: max(10px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+      background: radial-gradient(circle at 50% 20%, #2c1752, #140c26 75%);
+      transition: background 0.15s;
+    }
+    #padView.hurt { background: radial-gradient(circle at 50% 20%, #7a1030, #2a0a14 75%); }
+    #me { display: flex; align-items: center; gap: 12px; }
+    #avatar {
+      width: 64px; height: 64px; flex-shrink: 0; border-radius: 50%;
+      display: grid; place-items: center; font-size: 40px; border: 4px solid #fff;
+    }
+    #meInfo { flex: 1; min-width: 0; }
+    #meName { font-weight: 900; font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #hpBar { height: 16px; background: rgba(255,255,255,0.15); border-radius: 8px; overflow: hidden; margin-top: 6px; }
+    #hpFill { height: 100%; width: 100%; background: var(--ok); transition: width 0.2s, background 0.2s; }
+    #hpText { font-size: 13px; opacity: 0.8; margin-top: 3px; }
+    #kills { text-align: center; font-weight: 900; font-size: 26px; line-height: 1; }
+    #kills small { display: block; font-size: 11px; opacity: 0.7; font-weight: 700; letter-spacing: 0.08em; }
+
+    #status { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; min-height: 120px; }
+    #big { font-size: clamp(30px, 10vw, 52px); font-weight: 900; line-height: 1.05; text-shadow: 0 4px 0 rgba(0,0,0,0.35); }
+    #small { font-size: 17px; font-weight: 700; margin-top: 8px; line-height: 1.35; white-space: pre-line; opacity: 0.92; }
+    #status.warn #small { background: var(--hot); color: #fff; padding: 8px 12px; border-radius: 12px; align-self: center; animation: flash 0.5s infinite; opacity: 1; }
+    #preview { width: 120px; height: 120px; align-self: center; }
+
+    #controls { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+    #controls.off { opacity: 0.25; pointer-events: none; }
+    #dpad {
+      position: relative; width: min(46vw, 230px); aspect-ratio: 1; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.18);
+      touch-action: none;
+    }
+    .arrow {
+      position: absolute; width: 34%; height: 34%; display: grid; place-items: center;
+      font-size: 30px; border-radius: 14px; background: rgba(255,255,255,0.14); color: #fff;
+      pointer-events: none; transition: background 0.06s, transform 0.06s;
+    }
+    .arrow.on { background: var(--violet); transform: scale(1.08); }
+    #up { left: 33%; top: 3%; }
+    #down { left: 33%; bottom: 3%; }
+    #left { left: 3%; top: 33%; }
+    #right { right: 3%; top: 33%; }
+    #knob {
+      position: absolute; left: 50%; top: 50%; width: 22%; height: 22%; margin: -11% 0 0 -11%;
+      border-radius: 50%; background: rgba(255,255,255,0.35); pointer-events: none;
+    }
+    #hitBtn {
+      width: min(40vw, 200px); aspect-ratio: 1; border-radius: 50%; border: 0;
+      background: radial-gradient(circle at 35% 30%, #ff7a8f, var(--hot) 60%, #a3142f);
+      color: #fff; font-size: 34px; font-weight: 900; letter-spacing: 0.04em;
+      box-shadow: 0 8px 0 #7a0f24, 0 10px 30px rgba(255,59,92,0.45);
+      touch-action: none;
+    }
+    #hitBtn.down { transform: translateY(6px); box-shadow: 0 2px 0 #7a0f24; }
+    #leaveBtn {
+      position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 84px); right: 14px;
+      background: rgba(255,255,255,0.12); color: var(--text); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px;
+    }
+    #conn {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: var(--hot); color: #fff; font-weight: 800; padding: 8px 16px; border-radius: 999px;
+    }
+    @media (orientation: landscape) and (max-height: 500px) {
+      #padView { flex-direction: row; flex-wrap: wrap; align-content: space-between; }
+      #me { width: 100%; }
+      #status { min-height: 0; }
+      #controls { width: 100%; }
+      #preview { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <section id="joinView">
+    <div class="joinCard panel">
+      <h1 class="title">🥊 Beat 'Em Up</h1>
+      <p>Grab your stick and whack everyone else.<br>Last fighter standing wins!</p>
+      <form id="joinForm" autocomplete="off">
+        <input id="name" maxlength="16" placeholder="Your name" enterkeyhint="go" autocomplete="off" autocapitalize="words">
+        <button type="submit">Enter the arena!</button>
+      </form>
+      <p id="joinErr" class="err"></p>
+    </div>
+  </section>
+
+  <section id="padView" class="hidden">
+    <div id="me">
+      <div id="avatar">🐶</div>
+      <div id="meInfo">
+        <div id="meName"></div>
+        <div id="hpBar"><div id="hpFill"></div></div>
+        <div id="hpText"></div>
+      </div>
+      <div id="kills">0<small>KOs</small></div>
+    </div>
+    <div id="status">
+      <canvas id="preview" width="240" height="240"></canvas>
+      <div id="big"></div>
+      <div id="small"></div>
+    </div>
+    <div id="controls">
+      <div id="dpad">
+        <div class="arrow" id="up">▲</div>
+        <div class="arrow" id="left">◀</div>
+        <div class="arrow" id="right">▶</div>
+        <div class="arrow" id="down">▼</div>
+        <div id="knob"></div>
+      </div>
+      <button id="hitBtn" type="button">HIT!</button>
+    </div>
+    <button id="leaveBtn" type="button">Change name</button>
+    <div id="conn" class="hidden">Reconnecting…</div>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/art.js"></script>
+  <script src="/player.js"></script>
+</body>
+</html>
