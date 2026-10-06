@@ -2,6 +2,7 @@ services:
   - type: web
     name: shark-bait
     runtime: node
+    rootDir: sharkbait
     plan: free
     buildCommand: npm install --omit=dev
     startCommand: npm start

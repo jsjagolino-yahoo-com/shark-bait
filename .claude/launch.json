@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "shark-bait", "runtimeExecutable": "node", "runtimeArgs": ["server.js"], "port": 3000 }
+    { "name": "shark-bait", "runtimeExecutable": "node", "runtimeArgs": ["sharkbait/server.js"], "port": 3000 }
   ]
 }
