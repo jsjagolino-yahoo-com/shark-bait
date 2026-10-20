@@ -67,7 +67,11 @@ function lanAddresses() {
 
 // ---- Game state ---------------------------------------------------------
 const game = {
-  phase: 'lobby', // lobby | countdown | fighting | gameOver
+  phase: 'lobby', // lobby | countdown | fighting | roundOver | gameOver
+  round: 0,
+  quota: 0,       // knockouts needed to end this round (half of the fighters who started it)
+  roundKos: 0,
+  koThisRound: [],
   countdownEnd: 0,
   fightStart: 0,
   ring: null,     // {x0, x1, y0, y1} when the arena is shrinking
@@ -123,29 +127,53 @@ function resetFighter(p) {
   p.stunUntil = 0;
 }
 
-function startGame() {
-  for (const [id, p] of players) if (!p.connected) players.delete(id);
-  const roster = [...players.values()];
-  if (roster.length < 2) return 'Need at least 2 connected players to start.';
-  // spread fighters out on a loose grid so nobody spawns on top of each other
-  const cols = Math.ceil(Math.sqrt(roster.length * (ARENA_W / ARENA_D)));
-  const rows = Math.ceil(roster.length / cols);
-  roster.sort(() => Math.random() - 0.5).forEach((p, i) => {
-    resetFighter(p);
-    p.status = 'alive';
+// Spread fighters out on a loose grid so nobody spawns on top of each other.
+function spreadOut(list) {
+  const cols = Math.ceil(Math.sqrt(list.length * (ARENA_W / ARENA_D)));
+  const rows = Math.ceil(list.length / cols);
+  [...list].sort(() => Math.random() - 0.5).forEach((p, i) => {
     const c = i % cols;
     const r = Math.floor(i / cols);
     p.x = ((c + 0.5) / cols) * (ARENA_W - 120) + 60 + rand(-15, 15);
     p.y = ((r + 0.5) / rows) * (ARENA_D - 60) + 30 + rand(-8, 8);
     p.facing = p.x < ARENA_W / 2 ? 1 : -1;
   });
+}
+
+function startGame() {
+  for (const [id, p] of players) if (!p.connected) players.delete(id);
+  const roster = [...players.values()];
+  if (roster.length < 2) return 'Need at least 2 connected players to start.';
+  for (const p of roster) {
+    resetFighter(p);
+    p.status = 'alive';
+  }
   game.feed = [];
   game.winner = null;
+  game.round = 0;
+  beginRound();
+  return null;
+}
+
+// Each round knocks out half of the fighters who start it; survivors are healed for the next one.
+function beginRound() {
+  const alive = alivePlayers();
+  game.round++;
+  game.quota = Math.max(1, Math.floor(alive.length / 2));
+  game.roundKos = 0;
+  game.koThisRound = [];
   game.ring = null;
+  for (const p of alive) {
+    p.hp = MAX_HP;
+    p.dx = 0;
+    p.dy = 0;
+    p.nextAttack = 0;
+    p.stunUntil = 0;
+  }
+  spreadOut(alive);
   game.phase = 'countdown';
   game.countdownEnd = Date.now() + COUNTDOWN_MS;
   pushAll();
-  return null;
 }
 
 function resetToLobby() {
@@ -158,7 +186,7 @@ function resetToLobby() {
     p.status = 'waiting';
     placeRandomly(p);
   }
-  Object.assign(game, { phase: 'lobby', ring: null, feed: [], winner: null });
+  Object.assign(game, { phase: 'lobby', round: 0, quota: 0, roundKos: 0, koThisRound: [], ring: null, feed: [], winner: null });
   pushAll();
 }
 
@@ -170,6 +198,8 @@ function knockOut(victim, killer, now) {
   victim.dy = 0;
   victim.killer = killer ? killer.name : 'the shrinking arena';
   if (killer) killer.kills++;
+  game.roundKos++;
+  game.koThisRound.push(victim.name);
   const entry = {
     k: killer ? killer.name : null,
     ka: killer ? killer.animal : null,
@@ -184,8 +214,20 @@ function knockOut(victim, killer, now) {
 }
 
 function checkEnd() {
-  if (game.phase !== 'fighting') return;
+  if (game.phase !== 'fighting' && game.phase !== 'countdown') return;
   const alive = alivePlayers();
+  // never ask for more knockouts than would leave one fighter (e.g. after a kick)
+  game.quota = Math.min(game.quota, game.roundKos + Math.max(0, alive.length - 1));
+  if (alive.length > 1 && game.roundKos >= game.quota) {
+    game.phase = 'roundOver';
+    game.ring = null;
+    for (const p of alive) {
+      p.dx = 0;
+      p.dy = 0;
+    }
+    pushAll();
+    return;
+  }
   if (alive.length <= 1) {
     game.phase = 'gameOver';
     const w = alive[0];
@@ -256,12 +298,14 @@ function step(dt, now) {
     p.hp -= RING_DPS * dt;
     if (p.hp <= 0) dying.push(p);
   }
-  // The arena never knocks out the very last fighters at once: spare the healthiest.
-  if (dying.length && dying.length >= alive.length) {
-    dying.sort((a, b) => b.hp - a.hp);
-    dying.shift().hp = 1;
+  // The arena never knocks out more fighters than the round needs: spare the healthiest.
+  const allowed = Math.min(game.quota - game.roundKos, alive.length - 1);
+  dying.sort((a, b) => a.hp - b.hp);
+  for (const p of dying.splice(Math.max(0, allowed))) p.hp = 1;
+  for (const p of dying) {
+    if (game.phase !== 'fighting') break;
+    knockOut(p, null, now);
   }
-  for (const p of dying) knockOut(p, null, now);
 }
 
 // ---- Broadcasting -------------------------------------------------------
@@ -269,6 +313,10 @@ function screenState() {
   const now = Date.now();
   return {
     phase: game.phase,
+    round: game.round,
+    quota: game.quota,
+    roundKos: game.roundKos,
+    koThisRound: game.koThisRound,
     countdownMs: Math.max(0, game.countdownEnd - now),
     shrinkInMs: game.phase === 'fighting' ? Math.max(0, game.fightStart + SHRINK_AFTER_MS - now) : null,
     ring: game.ring,
@@ -305,6 +353,9 @@ function sendMe(p) {
     animal: ANIMALS[p.animal],
     hue: p.hue,
     phase: game.phase,
+    round: game.round,
+    quota: game.quota,
+    roundKos: game.roundKos,
     status: p.status,
     hp: Math.max(0, Math.ceil(p.hp)),
     maxHp: MAX_HP,
@@ -437,7 +488,8 @@ io.on('connection', (socket) => {
   };
 
   socket.on('host:start', hostOnly(() => {
-    if (game.phase !== 'lobby') return { error: 'Reset to the lobby first.' };
+    if (game.phase === 'roundOver') return beginRound();
+    if (game.phase !== 'lobby') return { error: 'A round is already running.' };
     const err = startGame();
     return err ? { error: err } : null;
   }));

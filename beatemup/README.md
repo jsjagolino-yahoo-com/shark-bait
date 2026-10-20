@@ -24,10 +24,11 @@ To change the Game Master password, set `HOST_KEY` before starting. On Render, s
 
 1. **Lobby / practice:** players scan the QR code and enter a name. They can already walk around and swing in the arena, with no damage, to learn the controls.
 2. **Start fight** (button or Space key): a 3-second countdown, then **FIGHT!**
-3. Each fighter has **150 HP**, and a hit does 9–13 damage. A stick only hits fighters in front of you at about the same depth on the floor. Each hit knocks the target back.
-4. After **45 s** the arena starts shrinking. Standing outside the safe zone drains HP, so nobody can hide in a corner and the game always ends.
-5. The big screen shows **fighters left**, a **KO feed** (who knocked out whom), the **Top KOs** leaderboard, and finally the **winner** with a podium for most knockouts.
-6. **Rematch:** press *Rematch (back to lobby)*, then *Start fight* again.
+3. **Rounds:** each round ends when **half of the fighters who started it** are knocked out. For example, 50 players goes 50 → 25 → 13 → 7 → 4 → 2 → 1. A "Round over" screen lists who went out. Survivors are healed to full HP and spread out again, and the Game Master presses **Start round N** (or Space) when ready. The last round is 2 fighters, and the winner is the last one standing.
+4. Each fighter has **150 HP**, and a hit does 9–13 damage. A stick only hits fighters in front of you at about the same depth on the floor. Each hit knocks the target back.
+5. **45 s** into each round the arena starts shrinking. Standing outside the safe zone drains HP, so nobody can hide in a corner and the game always ends.
+6. The big screen shows **fighters left**, the round and its knockout count, a **KO feed** (who knocked out whom), the **Top KOs** leaderboard, and finally the **winner** with a podium for most knockouts.
+7. **Rematch:** press *Rematch (back to lobby)*, then *Start fight* again.
 
 Controls on the phone: drag on the D-pad (8 directions) and tap or hold **HIT!**. On a laptop you can also use the arrow keys/WASD and Space.
 

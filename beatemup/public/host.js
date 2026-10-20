@@ -32,7 +32,7 @@
 
   $('startBtn').addEventListener('click', start);
   $('resetBtn').addEventListener('click', () => {
-    if (state && state.phase === 'fighting' && !confirm('Reset to lobby? This ends the current fight.')) return;
+    if (state && ['countdown', 'fighting', 'roundOver'].includes(state.phase) && !confirm('Reset to lobby? This ends the current game.')) return;
     socket.emit('host:reset', () => say(''));
   });
   $('playersBtn').addEventListener('click', () => $('drawer').classList.toggle('hidden'));
@@ -44,7 +44,7 @@
     if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('hideControls');
     if (e.key === ' ' || e.key === 'Enter') {
       e.preventDefault();
-      if (state && state.phase === 'lobby') start();
+      if (state && (state.phase === 'lobby' || state.phase === 'roundOver')) start();
     }
   });
 
@@ -56,11 +56,14 @@
     if (s.phase === 'lobby') {
       btn.textContent = `🥊 Start fight (${connected} players)`;
       btn.disabled = connected < 2;
+    } else if (s.phase === 'roundOver') {
+      btn.textContent = s.aliveCount <= 2 ? '🥊 Start FINAL round' : `🥊 Start round ${s.round + 1}`;
+      btn.disabled = false;
     } else if (s.phase === 'gameOver') {
       btn.textContent = '🏆 Game over — reset for a rematch';
       btn.disabled = true;
     } else {
-      btn.textContent = 'Fight in progress…';
+      btn.textContent = `Round ${s.round} in progress…`;
       btn.disabled = true;
     }
     $('resetBtn').textContent = s.phase === 'gameOver' ? '↺ Rematch (back to lobby)' : '↺ Reset to lobby';

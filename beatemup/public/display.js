@@ -6,7 +6,7 @@
 
   document.body.insertAdjacentHTML('beforeend', `
     <canvas id="arena"></canvas>
-    <div id="hud" class="hidden"><span class="lbl">Fighters left</span><span id="hLeft">0 / 0</span></div>
+    <div id="hud" class="hidden"><span class="lbl">Fighters left</span><span id="hLeft">0 / 0</span><span id="hRound" class="sub"></span></div>
     <aside id="leaders" class="panel hidden"><h3>🏆 Top KOs</h3><ol id="leaderList"></ol></aside>
     <aside id="feed" class="panel hidden"><h3>💀 Knocked out</h3><ul id="feedList"></ul></aside>
     <div id="ringMsg" class="hidden"></div>
@@ -182,8 +182,11 @@
     const s = state;
     const inGame = s.phase !== 'lobby';
     $('hud').classList.toggle('hidden', !inGame);
-    $('feed').classList.toggle('hidden', !(s.phase === 'fighting' || s.phase === 'gameOver') || !s.feed.length);
+    $('feed').classList.toggle('hidden', !(s.phase === 'fighting' || s.phase === 'roundOver' || s.phase === 'gameOver') || !s.feed.length);
     $('hLeft').textContent = `${s.aliveCount} / ${s.total}`;
+    $('hRound').textContent = s.phase === 'roundOver' ? `Round ${s.round} complete`
+      : s.phase === 'gameOver' ? `Final round: ${s.round}`
+      : `Round ${s.round} · ${s.roundKos} / ${s.quota} knocked out`;
 
     // KO feed
     const fl = $('feedList');
@@ -249,8 +252,28 @@
         lobbySig = 'cd';
         c.className = 'countdown';
         c.textContent = '';
-        c.append(el('div', 'cdNum', '3'), el('div', 'cdSub', `${s.total} fighters · last one standing wins`));
+        const final = s.aliveCount <= 2;
+        c.append(
+          el('div', 'cdRound', final ? `Round ${s.round} · FINAL ROUND` : `Round ${s.round}`),
+          el('div', 'cdNum', '3'),
+          el('div', 'cdSub', final ? 'Last one standing wins!' : `${s.quota} of ${s.aliveCount} fighters will be knocked out`),
+        );
       }
+    } else if (s.phase === 'roundOver') {
+      const sig = 'ro|' + s.round;
+      if (sig === lobbySig) return;
+      lobbySig = sig;
+      c.className = 'modal';
+      c.textContent = '';
+      const card = el('div', 'panel resultCard');
+      card.append(el('h1', 'title', `Round ${s.round} over!`));
+      card.append(el('p', null, `Knocked out this round (${s.koThisRound.length}):`));
+      const chips = el('div', 'chips');
+      s.koThisRound.forEach((n) => chips.append(el('span', 'chip dead', '💀 ' + n)));
+      card.append(chips);
+      card.append(el('h2', 'survivors', `${s.aliveCount} fighters advance`));
+      card.append(el('p', 'tag', s.aliveCount <= 2 ? 'Next up: the FINAL round! Everyone healed to full HP.' : 'Everyone left is healed to full HP for the next round.'));
+      c.append(card);
     } else if (s.phase === 'gameOver') {
       const sig = 'go|' + (s.winner ? s.winner.name : '');
       if (sig === lobbySig) return;

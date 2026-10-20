@@ -236,10 +236,16 @@
       big = me.status === 'alive' ? '🏆 YOU WIN! 🏆' : 'Game over';
       small = me.status === 'alive' ? `Last fighter standing with ${me.kills} KOs!` : `Winner: ${me.winner || '—'}`;
     } else if (me.phase === 'countdown') {
-      small = 'Get ready to FIGHT!';
+      small = me.aliveCount <= 2 ? `Round ${me.round} · FINAL ROUND!` : `Round ${me.round} · ${me.quota} fighters will be knocked out`;
+    } else if (me.phase === 'roundOver' && me.status === 'alive') {
+      big = 'You survived! 💪';
+      small = `Round ${me.round} done · ${me.aliveCount} fighters left
+You'll be healed to full HP.
+Wait for the next round…`;
     } else if (canFight) {
       big = 'FIGHT!';
-      small = `${me.aliveCount} of ${me.total} fighters left`;
+      small = `Round ${me.round} · ${Math.max(0, me.quota - me.roundKos)} more KOs to end it
+${me.aliveCount} of ${me.total} fighters left`;
       if (me.outside) {
         warn = true;
         small = '⚠ Outside the arena! Move to the center!';
