@@ -48,16 +48,29 @@
     }
   });
 
+  // Button text, optionally led by the stick icon.
+  function label(btn, text, withIcon) {
+    btn.textContent = '';
+    if (withIcon) {
+      const img = document.createElement('img');
+      img.className = 'ico';
+      img.src = '/stick.svg';
+      img.alt = '';
+      btn.append(img, ' ');
+    }
+    btn.append(text);
+  }
+
   let lastList = 0;
   socket.on('state', (s) => {
     state = s;
     const btn = $('startBtn');
     const connected = s.players.filter((p) => p[11] && p[6] !== 3).length;
     if (s.phase === 'lobby') {
-      btn.textContent = `🥊 Start fight (${connected} players)`;
+      label(btn, `Start fight (${connected} players)`, true);
       btn.disabled = connected < 2;
     } else if (s.phase === 'roundOver') {
-      btn.textContent = s.aliveCount <= 2 ? '🥊 Start FINAL round' : `🥊 Start round ${s.round + 1}`;
+      label(btn, s.aliveCount <= 2 ? 'Start FINAL round' : `Start round ${s.round + 1}`, true);
       btn.disabled = false;
     } else if (s.phase === 'gameOver') {
       btn.textContent = '🏆 Game over — reset for a rematch';

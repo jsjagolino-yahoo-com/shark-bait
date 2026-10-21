@@ -563,7 +563,7 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🥊  Beat 'Em Up is running on port ${PORT}\n`);
+  console.log(`\n  Beat 'Em Up is running on port ${PORT}\n`);
   console.log(`   Players join:   http://localhost:${PORT}`);
   for (const ip of lanAddresses()) console.log(`                   http://${ip}:${PORT}`);
   console.log(`   Big screen:     http://localhost:${PORT}/screen`);

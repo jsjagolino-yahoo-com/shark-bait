@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- wooden fighting stick, same colours as the in-game stick -->
+  <g transform="rotate(-40 32 32)" stroke-linecap="round">
+    <path d="M40 27 L46 18" stroke="#5a3712" stroke-width="7"/>
+    <path d="M40 27 L46 18" stroke="#8b5a2b" stroke-width="4"/>
+    <rect x="5" y="26" width="54" height="12" rx="6" fill="#8b5a2b" stroke="#5a3712" stroke-width="2.5"/>
+    <rect x="5" y="26" width="14" height="12" rx="6" fill="#6b3f17" stroke="#5a3712" stroke-width="2.5"/>
+    <path d="M24 31h9M37 34h7M48 30.5h6" stroke="#6b3f17" stroke-width="1.8" fill="none"/>
+    <circle cx="44" cy="32" r="1.6" fill="#5a3712"/>
+  </g>
+</svg>

@@ -24,6 +24,7 @@ html, body {
 canvas { display: block; }
 button { font: inherit; cursor: pointer; }
 .hidden { display: none !important; }
+.ico { width: 1em; height: 1em; vertical-align: -0.12em; }
 
 .panel {
   background: var(--panel);

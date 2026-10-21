@@ -272,7 +272,12 @@
       img.alt = 'QR code to join';
       left.append(img, el('div', 'url', joinUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')));
       const right = el('div', 'listSide');
-      right.append(el('h1', 'title', "🥊 BEAT 'EM UP"));
+      const h1 = el('h1', 'title');
+      const ico = el('img', 'ico');
+      ico.src = '/stick.svg';
+      ico.alt = '';
+      h1.append(ico, " BEAT 'EM UP");
+      right.append(h1);
       right.append(el('p', 'tag', 'Scan to join · Practice in the arena below · Last fighter standing wins!'));
       right.append(el('h2', null, `${waiting.length} fighter${waiting.length === 1 ? '' : 's'} ready`));
       const chips = el('div', 'chips');
@@ -494,8 +499,8 @@
     return shot;
   }
 
-  function moveCam(tz, tx, ty, dt) {
-    const k = Math.min(1, dt * 2.2);
+  function moveCam(tz, tx, ty, dt, rate = 2.2) {
+    const k = Math.min(1, dt * rate);
     if (!cam.x) Object.assign(cam, { x: W / 2, y: H / 2 });
     cam.z += (tz - cam.z) * k;
     cam.x += (tx - cam.x) * k;
@@ -529,17 +534,23 @@
   // ---- Phone arena view: follows you; pinch / drag / buttons to look around ----------------
   const WATCH_MAX_ZOOM = watch ? 5 : MAX_ZOOM;
   let camMode = 'follow'; // follow | manual
-  const followZoom = () => Math.max(1, Math.min(4, (H * 0.55) / Math.max(1, floorH)));
+  const followZoom = () => Math.max(1, Math.min(4.5, (H * 0.8) / Math.max(1, floorH)));
 
+  let lastTouch = 0;
   function watchCamera(alive, dt) {
+    const mine = myId && fighters.get(myId);
+    const playing = mine && (mine.status === 0 || mine.status === 1);
+    // looked around by hand, then started walking again: snap back to following you
+    if (camMode === 'manual' && playing && mine.moving && performance.now() - lastTouch > 800) setMode('follow');
     if (camMode === 'manual') return clampCam();
     const fz = followZoom();
     const phase = state && state.phase;
-    const mine = myId && fighters.get(myId);
     let tz = fz, tx = W / 2, ty = toY(AD / 2);
-    if (mine && (mine.status === 0 || mine.status === 1)) {
-      tx = toX(mine.x);
+    if (playing) {
+      const lead = mine.moving ? mine.facing * 90 : 0; // look a little ahead of where you are walking
+      tx = toX(mine.x + lead);
       ty = toY(mine.y) - 50 * figScale(mine.y);
+      return moveCam(tz, tx, ty, dt, 6); // keep up closely with your own fighter
     } else if (alive.length && (phase === 'fighting' || phase === 'roundOver' || phase === 'gameOver')) {
       const shot = autoShot(alive, fz, 4); // you are out: follow the action instead
       tz = shot.z;
@@ -561,6 +572,7 @@
     cam.x = wx - (px - W / 2) / cam.z;
     cam.y = wy - (py - H / 2) / cam.z;
     setMode('manual');
+    lastTouch = performance.now();
     clampCam();
   }
 
@@ -583,6 +595,7 @@
     canvas.addEventListener('pointerdown', (e) => {
       try { canvas.setPointerCapture(e.pointerId); } catch {}
       pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      lastTouch = performance.now();
       const now = performance.now();
       if (pts.size === 1 && now - lastTap < 300) setMode('follow'); // double-tap: back to following
       lastTap = now;
@@ -591,6 +604,7 @@
       const prev = pts.get(e.pointerId);
       if (!prev) return;
       const cur = { x: e.clientX, y: e.clientY };
+      lastTouch = performance.now();
       if (pts.size === 1) {
         if (cur.x !== prev.x || cur.y !== prev.y) {
           cam.x -= (cur.x - prev.x) / cam.z;

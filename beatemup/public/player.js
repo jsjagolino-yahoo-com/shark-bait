@@ -61,7 +61,7 @@
       $('joinView').classList.add('hidden');
       $('padView').classList.remove('hidden');
       requestWakeLock();
-      if (store.get('bu_watch') === '1' && !$('padView').classList.contains('watching')) setWatching(true);
+      if (!$('padView').classList.contains('watching')) setWatching(true); // the arena view is always on
     });
   }
 
@@ -266,15 +266,11 @@
   // ---- Arena view on the phone ----------------------------------------------------------
   function setWatching(on) {
     $('padView').classList.toggle('watching', on);
-    $('watchBtn').classList.toggle('on', on);
-    $('watchBtn').textContent = on ? '📺 Hide arena' : '📺 Watch arena';
     $('watch').classList.toggle('hidden', !on);
     // the arena view only connects while it is open, to save data
     if (on && !$('watch').getAttribute('src')) $('watch').setAttribute('src', '/screen?watch=1');
     if (!on) $('watch').removeAttribute('src');
-    store.set('bu_watch', on ? '1' : '0');
   }
-  $('watchBtn').addEventListener('click', () => setWatching(!$('padView').classList.contains('watching')));
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 
   // keyboard support (handy for testing on a laptop)

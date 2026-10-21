@@ -1,4 +1,4 @@
-# 🥊 Beat 'Em Up
+# Beat 'Em Up
 
 A phone-controlled, last-fighter-standing brawler for the monthly meeting. Every player is a stick figure with a random animal head and a stick. Use the D-pad to move and **HIT!** to swing. Knock everyone else out to win.
 

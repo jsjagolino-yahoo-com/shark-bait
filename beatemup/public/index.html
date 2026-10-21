@@ -84,13 +84,13 @@
     #controls { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
     #controls.off { opacity: 0.25; pointer-events: none; }
     #dpad {
-      position: relative; width: min(46vw, 230px); aspect-ratio: 1; border-radius: 50%;
+      position: relative; width: min(36vw, 160px); aspect-ratio: 1; border-radius: 50%;
       background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.18);
       touch-action: none;
     }
     .arrow {
       position: absolute; width: 34%; height: 34%; display: grid; place-items: center;
-      font-size: 30px; border-radius: 14px; background: rgba(255,255,255,0.14); color: #fff;
+      font-size: 22px; border-radius: 12px; background: rgba(255,255,255,0.14); color: #fff;
       pointer-events: none; transition: background 0.06s, transform 0.06s;
     }
     .arrow.on { background: var(--violet); transform: scale(1.08); }
@@ -103,7 +103,7 @@
       border-radius: 50%; background: rgba(255,255,255,0.35); pointer-events: none;
     }
     #hitBtn {
-      width: min(40vw, 200px); aspect-ratio: 1; border-radius: 50%; border: 0;
+      width: min(32vw, 140px); aspect-ratio: 1; border-radius: 50%; border: 0;
       background: radial-gradient(circle at 35% 30%, #ff7a8f, var(--hot) 60%, #a3142f);
       color: #fff; font-size: 34px; font-weight: 900; letter-spacing: 0.04em;
       box-shadow: 0 8px 0 #7a0f24, 0 10px 30px rgba(255,59,92,0.45);
@@ -115,7 +115,6 @@
       background: rgba(255,255,255,0.12); color: var(--text); border: 1px solid rgba(255,255,255,0.25);
       border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px;
     }
-    #tools #watchBtn.on { background: var(--violet); border-color: var(--violet); }
     #avatarWrap { position: relative; flex-shrink: 0; }
     #avatarWrap.can { cursor: pointer; }
     #editBadge {
@@ -123,12 +122,15 @@
       display: grid; place-items: center; font-size: 14px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
     #avatarWrap:not(.can) #editBadge { display: none; }
-    #watch { width: 100%; flex: 1; min-height: 170px; border: 0; border-radius: 14px; background: #140c26; margin-top: 6px; }
+    #watch { width: 100%; flex: 1; min-height: 240px; border: 0; border-radius: 14px; background: #140c26; margin-top: 4px; }
+    #padView.watching #controls { margin-top: 8px; }
+    #padView.watching #tools { margin-top: 4px; }
+    #padView.watching #tools:has(#leaveBtn.hidden) { display: none; }
     #padView.watching #preview { display: none; }
     #padView.watching.dead #preview { display: block; width: 76px; height: 76px; margin-bottom: -6px; }
     #padView.watching #status { justify-content: flex-start; min-height: 0; }
-    #padView.watching #big { font-size: 22px; }
-    #padView.watching #small { font-size: 13px; margin-top: 2px; }
+    #padView.watching #big { font-size: 18px; }
+    #padView.watching #small { font-size: 12px; margin-top: 1px; line-height: 1.25; }
     #padView.watching #status.warn #small { padding: 4px 10px; }
     #picker {
       position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
@@ -164,12 +166,12 @@
       #tools button { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
       #controls { display: contents; }
       #controls.off #dpad, #controls.off #hitBtn { opacity: 0.25; pointer-events: none; }
-      #dpad { grid-column: 1; grid-row: 2; align-self: center; width: min(58vh, 200px); }
-      #hitBtn { grid-column: 3; grid-row: 2; align-self: center; width: min(52vh, 170px); font-size: 28px; }
+      #dpad { grid-column: 1; grid-row: 2; align-self: end; width: min(44vh, 150px); }
+      #hitBtn { grid-column: 3; grid-row: 2; align-self: end; width: min(38vh, 125px); font-size: 22px; }
       #status { grid-column: 2; grid-row: 2; min-height: 0; justify-content: center; }
       #padView.watching #status { justify-content: flex-start; }
-      #big { font-size: 26px; }
-      #small { font-size: 13px; margin-top: 4px; }
+      #big { font-size: 16px; }
+      #small { font-size: 11px; margin-top: 1px; }
       #preview { display: none; }
       #padView.watching.dead #preview { width: 50px; height: 50px; }
       #watch { min-height: 0; margin-top: 4px; }
@@ -179,7 +181,7 @@
 <body>
   <section id="joinView">
     <div class="joinCard panel">
-      <h1 class="title">🥊 Beat 'Em Up</h1>
+      <h1 class="title"><img class="ico" src="/stick.svg" alt=""> Beat 'Em Up</h1>
       <p>Grab your stick and whack everyone else.<br>Last fighter standing wins!</p>
       <form id="joinForm" autocomplete="off">
         <input id="name" maxlength="16" placeholder="Your name" enterkeyhint="go" autocomplete="off" autocapitalize="words">
@@ -202,7 +204,6 @@
       <div id="kills">0<small>KOs</small></div>
     </div>
     <div id="tools">
-      <button id="watchBtn" type="button">📺 Watch arena</button>
       <button id="leaveBtn" type="button">Change name</button>
     </div>
     <div id="status">
