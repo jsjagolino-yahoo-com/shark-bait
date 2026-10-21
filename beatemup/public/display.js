@@ -372,15 +372,81 @@
     ctx.fillRect(x - w / 2, y, (w * Math.max(0, pct)) / 100, 5);
   }
 
+  // ---- Camera: zoom in on the last few fighters --------------------------------------
+  const ZOOM_AT = 8;      // start zooming when this many fighters (or fewer) are left
+  const MAX_ZOOM = 2.4;
+  const cam = { x: 0, y: 0, z: 1 };
+  let zoomOn = true;
+  try { zoomOn = localStorage.getItem('bu_zoom') !== 'off'; } catch {}
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || (e.key !== 'z' && e.key !== 'Z')) return;
+    zoomOn = !zoomOn;
+    try { localStorage.setItem('bu_zoom', zoomOn ? 'on' : 'off'); } catch {}
+    toast(zoomOn ? '🔍 Auto-zoom ON' : '🔍 Auto-zoom OFF');
+  });
+
+  const FIT_ALL_MIN_ZOOM = 1.4; // if everyone fits at least this close, show them all
+  const NEAR = 260;              // arena units: fighters this close to the focus are in the shot
+  let focusId = null;
+  let focusSince = 0;
+
+  // Zoom/centre needed to frame a group of fighters (screen space, below the top counter).
+  function frame_(group) {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const f of group) {
+      const px = toX(f.x), py = toY(f.y), s = figScale(f.y);
+      x0 = Math.min(x0, px - 75 * s);
+      x1 = Math.max(x1, px + 75 * s);
+      y0 = Math.min(y0, py - 150 * s); // head, HP bar and name
+      y1 = Math.max(y1, py + 15 * s);
+    }
+    const pad = 70;
+    const z = Math.max(1, Math.min(MAX_ZOOM, W / (x1 - x0 + pad * 2), (H * 0.74) / (y1 - y0 + pad * 2)));
+    return { z, x: (x0 + x1) / 2, y: (y0 + y1) / 2 - (H * 0.08) / z };
+  }
+
+  function updateCamera(alive, dt) {
+    let tz = 1, tx = W / 2, ty = H / 2;
+    const phase = state && state.phase;
+    const zoomPhase = phase === 'fighting' || phase === 'roundOver' || phase === 'gameOver';
+    if (zoomOn && zoomPhase && alive.length >= 1 && alive.length <= ZOOM_AT) {
+      let shot = frame_(alive);
+      if (shot.z < FIT_ALL_MIN_ZOOM && phase === 'fighting') {
+        // Too spread out to show everyone up close: follow the fight where someone is closest to a K.O.
+        const now = performance.now();
+        const current = alive.find((f) => f.id === focusId);
+        if (!current || now - focusSince > 3000) {
+          const weakest = alive.reduce((a, b) => (b.hp < a.hp ? b : a));
+          if (!current || weakest.hp < current.hp - 10) {
+            focusId = weakest.id;
+            focusSince = now;
+          }
+        }
+        const focus = alive.find((f) => f.id === focusId) || alive[0];
+        shot = frame_(alive.filter((f) => Math.hypot(f.x - focus.x, (f.y - focus.y) * 1.5) < NEAR));
+      }
+      tz = shot.z;
+      tx = shot.x;
+      ty = shot.y;
+    } else {
+      focusId = null;
+    }
+    const k = Math.min(1, dt * 2.2);
+    if (!cam.x) Object.assign(cam, { x: W / 2, y: H / 2 });
+    cam.z += (tz - cam.z) * k;
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
+    const hw = W / (2 * cam.z), hh = H / (2 * cam.z);
+    cam.x = Math.max(hw, Math.min(W - hw, cam.x));
+    cam.y = Math.max(hh, Math.min(H - hh, cam.y));
+  }
+
   let last = performance.now();
   let lastDom = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const t = now / 1000;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    drawStage(t);
-    drawRing(t);
 
     const list = [];
     for (const f of fighters.values()) {
@@ -397,6 +463,15 @@
       list.push({ f, alpha });
     }
     list.sort((a, b) => a.f.y - b.f.y);
+    updateCamera(list.filter((e) => e.f.status === 1).map((e) => e.f), dt);
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(cam.z, cam.z);
+    ctx.translate(-cam.x, -cam.y);
+    drawStage(t);
+    drawRing(t);
     const crowd = list.length > 30;
     ctx.textAlign = 'center';
     for (const { f, alpha } of list) {
@@ -454,6 +529,7 @@
       ctx.fillText(txt, 0, 0);
       ctx.restore();
     }
+    ctx.restore(); // end of camera transform
 
     // FIGHT! flash
     if (fightFlash && now - fightFlash < 1000) {
@@ -502,5 +578,5 @@
   }
   requestAnimationFrame(frame);
 
-  window.Display = { socket, getState: () => state, animals: () => ANIMALS };
+  window.Display = { socket, getState: () => state, animals: () => ANIMALS, camera: () => ({ ...cam }) };
 })();
