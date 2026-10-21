@@ -33,6 +33,19 @@ const SHRINK_MIN = 0.22;         // final arena size (fraction)
 const RING_DPS = 12;             // damage/sec outside the arena
 const NAME_MAX = 16;
 const FEED_MAX = 12;
+// Company groups: each player picks one; names are shown in the group colour.
+const GROUPS = [
+  { key: 'AD', color: '#4da3ff' },       // blue
+  { key: 'SD', color: '#3ddc84' },       // green
+  { key: 'CyberSec', color: '#ffd60a' }, // yellow
+  { key: 'PM', color: '#ffffff' },       // white
+  { key: 'Infra', color: '#b57bff' },    // purple
+];
+const validGroup = (g) => {
+  if (g === null || g === undefined || g === '') return null;
+  const i = Math.floor(Number(g));
+  return i >= 0 && i < GROUPS.length ? i : null;
+};
 const ANIMALS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐔', '🐧', '🐺', '🐗', '🦄', '🦉', '🐴', '🐲', '🦝'];
 
 const STATUS = { waiting: 0, alive: 1, dead: 2, spectator: 3 };
@@ -55,7 +68,7 @@ app.get('/qr.svg', async (req, res) => {
 });
 
 app.get('/api/info', (req, res) => {
-  res.json({ lan: lanAddresses().map((ip) => `http://${ip}:${PORT}`), animals: ANIMALS, arena: { w: ARENA_W, d: ARENA_D } });
+  res.json({ lan: lanAddresses().map((ip) => `http://${ip}:${PORT}`), animals: ANIMALS, groups: GROUPS, arena: { w: ARENA_W, d: ARENA_D } });
 });
 
 function lanAddresses() {
@@ -205,6 +218,8 @@ function knockOut(victim, killer, now) {
     ka: killer ? killer.animal : null,
     v: victim.name,
     va: victim.animal,
+    kg: killer ? killer.group : null,
+    vg: victim.group,
   };
   game.feed.unshift(entry);
   game.feed.length = Math.min(game.feed.length, FEED_MAX);
@@ -236,7 +251,7 @@ function checkEnd() {
       w.dx = 0;
       w.dy = 0;
     }
-    game.winner = w ? { name: w.name, animal: w.animal, kills: w.kills, hp: Math.ceil(w.hp) } : null;
+    game.winner = w ? { name: w.name, animal: w.animal, group: w.group, kills: w.kills, hp: Math.ceil(w.hp) } : null;
     pushAll();
   }
 }
@@ -325,7 +340,7 @@ function screenState() {
     aliveCount: alivePlayers().length,
     total: fighters().length,
     arena: { w: ARENA_W, d: ARENA_D, maxHp: MAX_HP },
-    // [id, name, x, y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving]
+    // [id, name, x, y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving, group]
     players: [...players.values()].map((p) => [
       p.id,
       p.name,
@@ -342,6 +357,7 @@ function screenState() {
       p.kills,
       p.place || 0,
       p.dx || p.dy ? 1 : 0,
+      p.group,
     ]),
   };
 }
@@ -351,6 +367,7 @@ function sendMe(p) {
   io.to(p.sid).emit('me', {
     name: p.name,
     animal: ANIMALS[p.animal],
+    group: p.group,
     hue: p.hue,
     phase: game.phase,
     round: game.round,
@@ -413,14 +430,17 @@ io.on('connection', (socket) => {
     if (typeof ack !== 'function') ack = () => {};
     const name = cleanName(msg && msg.name);
     if (!name) return ack({ error: 'Please enter a name.' });
+    const group = validGroup(msg && msg.group);
     let id = String((msg && msg.id) || '');
     if (!/^[A-Za-z0-9-]{8,40}$/.test(id)) id = crypto.randomUUID();
 
     let p = players.get(id);
+    if (!p && group === null) return ack({ error: 'Please pick your group.' });
     if (p) {
       p.sid = socket.id;
       p.connected = true;
       if (game.phase === 'lobby') p.name = uniqueName(name, id);
+      if (group !== null && (p.group == null || p.status === 'waiting' || p.status === 'spectator')) p.group = group;
     } else {
       p = {
         id,
@@ -429,6 +449,7 @@ io.on('connection', (socket) => {
         connected: true,
         status: game.phase === 'lobby' ? 'waiting' : 'spectator',
         animal: pickAnimal(),
+        group,
         hue: Math.floor(Math.random() * 360),
         swings: 0,
         hits: 0,
@@ -481,6 +502,17 @@ io.on('connection', (socket) => {
     if (!p || !(i >= 0 && i < ANIMALS.length)) return;
     if (p.status !== 'waiting' && p.status !== 'spectator') return;
     p.animal = i;
+    sendMe(p);
+    pushScreens();
+  });
+
+  // ...and their group, also only before the fight starts.
+  socket.on('setGroup', (g) => {
+    const p = me();
+    const i = validGroup(g);
+    if (!p || i === null) return;
+    if (p.status !== 'waiting' && p.status !== 'spectator') return;
+    p.group = i;
     sendMe(p);
     pushScreens();
   });

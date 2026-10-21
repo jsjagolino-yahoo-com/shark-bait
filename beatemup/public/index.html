@@ -33,6 +33,26 @@
       background: var(--hot); color: #fff; box-shadow: 0 5px 0 #a3142f;
     }
     #joinForm button:active { transform: translateY(3px); box-shadow: 0 2px 0 #a3142f; }
+    .groupLabel { font-size: 14px; font-weight: 700; opacity: 0.8; margin: 4px 0 -4px; }
+    .groupPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .groupPick button {
+      padding: 10px 4px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06); font-size: 15px; font-weight: 900;
+    }
+    .groupPick button.sel { border-color: currentColor; background: rgba(255,255,255,0.16); box-shadow: inset 0 0 0 2px currentColor; }
+    #joinForm .groupPick button { font-size: 16px; padding: 10px 4px; background: rgba(255,255,255,0.06); box-shadow: none; border-radius: 12px; }
+    #joinForm .groupPick button.sel { background: rgba(255,255,255,0.18); box-shadow: inset 0 0 0 2px currentColor; }
+    #joinForm .groupPick button:active { transform: none; }
+    #nameRow { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    #groupChip {
+      flex-shrink: 0; font-size: 12px; font-weight: 900; padding: 2px 8px; border-radius: 999px;
+      border: 1.5px solid currentColor; background: rgba(0,0,0,0.25);
+    }
+    #groupChip:empty { display: none; }
+    #groupChip.can { cursor: pointer; }
+    #groupChip.can::after { content: ' ✏️'; font-size: 11px; }
+    #pickGrid.groupGrid { grid-template-columns: 1fr; }
+    #pickGrid.groupGrid button { font-size: 20px; aspect-ratio: auto; padding: 10px; font-weight: 900; }
     .err { color: #ffb3c1; min-height: 1.2em; margin-top: 12px !important; font-weight: 700; }
 
     #padView {
@@ -127,12 +147,32 @@
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       background: var(--hot); color: #fff; font-weight: 800; padding: 8px 16px; border-radius: 999px;
     }
+    /* Phone held sideways: D-pad left, arena / status in the middle, HIT right */
     @media (orientation: landscape) and (max-height: 500px) {
-      #padView { flex-direction: row; flex-wrap: wrap; align-content: space-between; }
-      #me { width: 100%; }
-      #status { min-height: 0; }
-      #controls { width: 100%; }
+      #padView {
+        display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+        gap: 6px 12px; padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+      }
+      #me { grid-column: 1 / 3; grid-row: 1; gap: 10px; }
+      #avatar { width: 44px; height: 44px; font-size: 28px; border-width: 3px; }
+      #editBadge { width: 20px; height: 20px; font-size: 11px; }
+      #meName { font-size: 17px; }
+      #hpBar { height: 12px; margin-top: 4px; }
+      #hpText { font-size: 11px; margin-top: 1px; }
+      #kills { font-size: 22px; }
+      #tools { grid-column: 3; grid-row: 1; margin: 0; align-items: center; flex-direction: column; gap: 4px; }
+      #tools button { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
+      #controls { display: contents; }
+      #controls.off #dpad, #controls.off #hitBtn { opacity: 0.25; pointer-events: none; }
+      #dpad { grid-column: 1; grid-row: 2; align-self: center; width: min(58vh, 200px); }
+      #hitBtn { grid-column: 3; grid-row: 2; align-self: center; width: min(52vh, 170px); font-size: 28px; }
+      #status { grid-column: 2; grid-row: 2; min-height: 0; justify-content: center; }
+      #padView.watching #status { justify-content: flex-start; }
+      #big { font-size: 26px; }
+      #small { font-size: 13px; margin-top: 4px; }
       #preview { display: none; }
+      #padView.watching.dead #preview { width: 50px; height: 50px; }
+      #watch { min-height: 0; margin-top: 4px; }
     }
   </style>
 </head>
@@ -143,6 +183,8 @@
       <p>Grab your stick and whack everyone else.<br>Last fighter standing wins!</p>
       <form id="joinForm" autocomplete="off">
         <input id="name" maxlength="16" placeholder="Your name" enterkeyhint="go" autocomplete="off" autocapitalize="words">
+        <div class="groupLabel">Your group</div>
+        <div id="groupPick" class="groupPick"></div>
         <button type="submit">Enter the arena!</button>
       </form>
       <p id="joinErr" class="err"></p>
@@ -153,7 +195,7 @@
     <div id="me">
       <div id="avatarWrap"><div id="avatar">🐶</div><span id="editBadge">✏️</span></div>
       <div id="meInfo">
-        <div id="meName"></div>
+        <div id="nameRow"><div id="meName"></div><span id="groupChip"></span></div>
         <div id="hpBar"><div id="hpFill"></div></div>
         <div id="hpText"></div>
       </div>
@@ -184,7 +226,7 @@
 
   <div id="picker" class="hidden">
     <div class="panel">
-      <h3>Pick your head</h3>
+      <h3 id="pickTitle">Pick your head</h3>
       <div id="pickGrid"></div>
       <button id="pickClose" type="button">Done</button>
     </div>

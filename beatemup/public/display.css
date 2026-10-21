@@ -102,3 +102,13 @@ body.watch .toast { font-size: 11px; padding: 4px 8px; border-radius: 8px; }
   background: rgba(20,10,40,0.8); color: #fff; font-size: 17px; font-weight: 900; padding: 0;
 }
 #watchBar button.on { background: var(--violet); }
+
+/* ---- Group legend ---- */
+#groups { position: fixed; left: 14px; bottom: 14px; padding: 10px 14px; min-width: 190px; pointer-events: none; }
+#groups h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.8; }
+#groups ul { list-style: none; margin: 0; padding: 0; }
+#groups li { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px; font-weight: 900; font-size: 18px; line-height: 1.5; }
+#groups li.out { opacity: 0.4; text-decoration: line-through; }
+#groups .dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); }
+#groups .gcount { font-variant-numeric: tabular-nums; }
+.resultCard .team { font-size: 22px; font-weight: 900; margin: 4px 0 0; }

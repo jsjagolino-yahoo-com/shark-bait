@@ -12,6 +12,27 @@
     store.set('bu_id', myId);
   }
   let myName = store.get('bu_name') || '';
+  let myGroup = store.get('bu_group');
+  myGroup = myGroup == null || myGroup === '' ? null : Number(myGroup);
+  let GROUPS = [];
+  const gColor = (g) => (GROUPS[g] && GROUPS[g].color) || '#ffffff';
+  function renderGroupButtons() {
+    const box = $('groupPick');
+    box.textContent = '';
+    GROUPS.forEach((g, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = g.key;
+      b.style.color = g.color;
+      if (i === myGroup) b.className = 'sel';
+      b.addEventListener('click', () => {
+        myGroup = i;
+        store.set('bu_group', String(i));
+        renderGroupButtons();
+      });
+      box.append(b);
+    });
+  }
   let joined = false;
   let me = null;
   let lastHp = null;
@@ -29,7 +50,7 @@
   }
 
   function join(name) {
-    socket.emit('join', { id: myId, name }, (res) => {
+    socket.emit('join', { id: myId, name, group: myGroup }, (res) => {
       if (!res || res.error) {
         joined = false;
         return showJoin(res ? res.error : 'Could not join.');
@@ -48,6 +69,7 @@
     e.preventDefault();
     const name = $('name').value.trim();
     if (!name) return showJoin('Please enter your name.');
+    if (myGroup == null) return showJoin('Please pick your group.');
     $('name').blur();
     join(name);
   });
@@ -180,17 +202,24 @@
   hitBtn.addEventListener('pointerleave', hitUp);
 
   $('padView').addEventListener('touchstart', (e) => {
-    if (!e.target.closest('#tools, #avatarWrap')) e.preventDefault();
+    if (!e.target.closest('#tools, #avatarWrap, #nameRow')) e.preventDefault();
   }, { passive: false });
 
   // ---- Pick your animal head (lobby only) ---------------------------------------------
   let ANIMALS = [];
-  fetch('/api/info').then((r) => r.json()).then((info) => (ANIMALS = info.animals)).catch(() => {});
+  fetch('/api/info').then((r) => r.json()).then((info) => {
+    ANIMALS = info.animals;
+    GROUPS = info.groups || [];
+    renderGroupButtons();
+    render();
+  }).catch(() => {});
   const canPick = () => me && ((me.phase === 'lobby' && me.status === 'waiting') || me.status === 'spectator');
   function openPicker() {
     if (!canPick() || !ANIMALS.length) return;
     const grid = $('pickGrid');
     grid.textContent = '';
+    grid.className = '';
+    $('pickTitle').textContent = 'Pick your head';
     ANIMALS.forEach((a, i) => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -206,6 +235,32 @@
     $('picker').classList.remove('hidden');
   }
   $('avatarWrap').addEventListener('click', openPicker);
+
+  // Change group (lobby only): same picker, one big button per group.
+  function openGroupPicker() {
+    if (!canPick() || !GROUPS.length) return;
+    const grid = $('pickGrid');
+    grid.textContent = '';
+    grid.className = 'groupGrid';
+    $('pickTitle').textContent = 'Pick your group';
+    GROUPS.forEach((g, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = g.key;
+      b.style.color = g.color;
+      if (i === me.group) b.className = 'sel';
+      b.addEventListener('click', () => {
+        myGroup = i;
+        store.set('bu_group', String(i));
+        socket.emit('setGroup', i);
+        $('picker').classList.add('hidden');
+        vibrate(20);
+      });
+      grid.append(b);
+    });
+    $('picker').classList.remove('hidden');
+  }
+  $('groupChip').addEventListener('click', openGroupPicker);
   $('pickClose').addEventListener('click', () => $('picker').classList.add('hidden'));
 
   // ---- Arena view on the phone ----------------------------------------------------------
@@ -247,6 +302,11 @@
   function render() {
     if (!me) return;
     $('meName').textContent = me.name;
+    $('meName').style.color = gColor(me.group);
+    const grp = GROUPS[me.group];
+    $('groupChip').textContent = grp ? grp.key : '';
+    $('groupChip').style.color = grp ? grp.color : '';
+    $('groupChip').classList.toggle('can', !!canPick());
     $('avatar').textContent = me.animal;
     $('avatar').style.background = `hsl(${me.hue} 70% 45%)`;
     $('avatar').style.borderColor = `hsl(${me.hue} 80% 70%)`;

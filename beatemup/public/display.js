@@ -17,6 +17,7 @@
     <aside id="leaders" class="panel hidden"><h3>🏆 Top KOs</h3><ol id="leaderList"></ol></aside>
     <aside id="feed" class="panel hidden"><h3>💀 Knocked out</h3><ul id="feedList"></ul></aside>
     <div id="ringMsg" class="hidden"></div>
+    <aside id="groups" class="panel hidden"><h3 id="groupsTitle">Groups</h3><ul id="groupList"></ul></aside>
     <div id="center"></div>
     <div id="toasts"></div>
     <div id="offline" class="hidden">Connecting to game server…</div>
@@ -44,8 +45,19 @@
   socket.on('disconnect', () => $('offline').classList.remove('hidden'));
 
   let ANIMALS = ['🐶'];
+  let GROUPS = [];
+  const gColor = (g) => (GROUPS[g] && GROUPS[g].color) || '#ffffff';
+  const gName = (g) => (GROUPS[g] && GROUPS[g].key) || '';
+  // element whose text is shown in a player's group colour
+  const tinted = (tag, cls, text, g) => {
+    const e = el(tag, cls, text);
+    if (g != null) e.style.color = gColor(g);
+    return e;
+  };
   fetch('/api/info').then((r) => r.json()).then((info) => {
     ANIMALS = info.animals;
+    GROUPS = info.groups || [];
+    domDirty = true;
     if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || !info.lan[0]) return;
     joinUrl = info.lan[0] + '/';
     lobbySig = '';
@@ -123,7 +135,7 @@
     }
     const now = performance.now();
     const seen = new Set();
-    for (const [id, name, x, y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving] of s.players) {
+    for (const [id, name, x, y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving, group] of s.players) {
       seen.add(id);
       let f = fighters.get(id);
       if (!f) {
@@ -140,7 +152,7 @@
         f.deadRound = s.round;
       }
       if (status !== 2) f.deadStart = -1;
-      Object.assign(f, { name, tx: x, ty: y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving });
+      Object.assign(f, { name, tx: x, ty: y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving, group });
       if (prevPhase !== s.phase && (s.phase === 'countdown' || s.phase === 'lobby')) {
         f.x = x;
         f.y = y;
@@ -213,9 +225,9 @@
     fl.textContent = '';
     for (const k of s.feed.slice(0, 10)) {
       const li = el('li');
-      li.append(el('span', 'k', k.k ? `${ANIMALS[k.ka] || ''} ${k.k}` : '🌀 Arena'));
+      li.append(tinted('span', 'k', k.k ? `${ANIMALS[k.ka] || ''} ${k.k}` : '🌀 Arena', k.k ? k.kg : null));
       li.append(el('span', 'arrow', ' ➜ '));
-      li.append(el('span', 'v', `${ANIMALS[k.va] || ''} ${k.v}`));
+      li.append(tinted('span', 'v', `${ANIMALS[k.va] || ''} ${k.v}`, k.vg));
       fl.append(li);
     }
 
@@ -226,7 +238,7 @@
     ll.textContent = '';
     for (const f of leaders) {
       const li = el('li', f.status === 2 ? 'out' : '');
-      li.append(el('span', 'n', `${ANIMALS[f.animal] || ''} ${f.name}`));
+      li.append(tinted('span', 'n', `${ANIMALS[f.animal] || ''} ${f.name}`, f.group));
       li.append(el('span', 'c', `${f.kills}`));
       ll.append(li);
     }
@@ -242,6 +254,8 @@
     } else {
       rm.className = 'hidden';
     }
+
+    renderGroups(s);
 
     const c = $('center');
     if (s.phase === 'lobby') {
@@ -262,7 +276,7 @@
       right.append(el('p', 'tag', 'Scan to join · Practice in the arena below · Last fighter standing wins!'));
       right.append(el('h2', null, `${waiting.length} fighter${waiting.length === 1 ? '' : 's'} ready`));
       const chips = el('div', 'chips');
-      waiting.slice(0, 60).forEach((p) => chips.append(el('span', 'chip' + (p[11] ? '' : ' off'), `${ANIMALS[p[7]] || ''} ${p[1]}`)));
+      waiting.slice(0, 60).forEach((p) => chips.append(tinted('span', 'chip' + (p[11] ? '' : ' off'), `${ANIMALS[p[7]] || ''} ${p[1]}`, p[15])));
       if (waiting.length > 60) chips.append(el('span', 'chip', `+${waiting.length - 60} more`));
       right.append(chips);
       card.append(left, right);
@@ -289,7 +303,10 @@
       card.append(el('h1', 'title', `Round ${s.round} over!`));
       card.append(el('p', null, `Knocked out this round (${s.koThisRound.length}):`));
       const chips = el('div', 'chips');
-      s.koThisRound.forEach((n) => chips.append(el('span', 'chip dead', '💀 ' + n)));
+      s.koThisRound.forEach((n) => {
+        const f = [...fighters.values()].find((x) => x.name === n);
+        chips.append(tinted('span', 'chip dead', '💀 ' + n, f ? f.group : null));
+      });
       card.append(chips);
       card.append(el('h2', 'survivors', `${s.aliveCount} fighters advance`));
       card.append(el('p', 'tag', s.aliveCount <= 2 ? 'Next up: the FINAL round! Everyone healed to full HP.' : 'Everyone left is healed to full HP for the next round.'));
@@ -302,13 +319,14 @@
       c.textContent = '';
       const card = el('div', 'panel resultCard');
       card.append(el('div', 'trophy', s.winner ? ANIMALS[s.winner.animal] || '🏆' : '🏆'));
-      card.append(el('h1', 'title', s.winner ? s.winner.name : 'Nobody survived!'));
+      card.append(tinted('h1', 'title', s.winner ? s.winner.name : 'Nobody survived!', s.winner && s.winner.group !== PM_GROUP ? s.winner.group : null));
+      if (s.winner && gName(s.winner.group)) card.append(tinted('p', 'team', `Team ${gName(s.winner.group)}`, s.winner.group));
       if (s.winner) card.append(el('p', 'tag', `🏆 Last fighter standing · ${s.winner.kills} KO${s.winner.kills === 1 ? '' : 's'} · ${s.winner.hp} HP left`));
       const top = [...fighters.values()].filter((f) => f.status !== 3).sort((a, b) => b.kills - a.kills).slice(0, 3).filter((f) => f.kills > 0);
       if (top.length) {
         card.append(el('p', null, 'Most knockouts'));
         const chips = el('div', 'chips');
-        top.forEach((f, i) => chips.append(el('span', 'chip', `${['🥇', '🥈', '🥉'][i]} ${ANIMALS[f.animal] || ''} ${f.name} · ${f.kills}`)));
+        top.forEach((f, i) => chips.append(tinted('span', 'chip', `${['🥇', '🥈', '🥉'][i]} ${ANIMALS[f.animal] || ''} ${f.name} · ${f.kills}`, f.group)));
         card.append(chips);
       }
       c.append(card);
@@ -317,6 +335,32 @@
       c.textContent = '';
       lobbySig = '';
     }
+  }
+
+  const PM_GROUP = 3; // white: winner title stays gold for readability
+  function renderGroups(s) {
+    const box = $('groups');
+    if (!GROUPS.length || watch) return box.classList.add('hidden');
+    const lobby = s.phase === 'lobby';
+    const rows = GROUPS.map(() => ({ left: 0, total: 0 }));
+    for (const p of s.players) {
+      const g = p[15], st = p[6];
+      if (g == null || !rows[g]) continue;
+      if (lobby ? st === 0 : st === 1 || st === 2) rows[g].total++;
+      if (!lobby && st === 1) rows[g].left++;
+    }
+    box.classList.remove('hidden');
+    $('groupsTitle').textContent = lobby ? 'Groups · joined' : 'Groups · still in';
+    const list = $('groupList');
+    list.textContent = '';
+    GROUPS.forEach((g, i) => {
+      const r = rows[i];
+      const li = el('li', !lobby && r.total && !r.left ? 'out' : '');
+      const dot = el('span', 'dot');
+      dot.style.background = g.color;
+      li.append(dot, tinted('span', 'gname', g.key, i), el('span', 'gcount', lobby ? String(r.total) : `${r.left} / ${r.total}`));
+      list.append(li);
+    });
   }
 
   // ---- Drawing -------------------------------------------------------------------
@@ -630,7 +674,7 @@
       ctx.lineWidth = watch ? 2.5 * s : 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       ctx.strokeText(f.name, px, top - gap);
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = gColor(f.group);
       ctx.fillText(f.name, px, top - gap);
     }
 

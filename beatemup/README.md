@@ -22,7 +22,7 @@ To change the Game Master password, set `HOST_KEY` before starting. On Render, s
 
 ## How a game goes
 
-1. **Lobby / practice:** players scan the QR code and enter a name. They can already walk around and swing in the arena, with no damage, to learn the controls. They can also **tap their face** on the phone to pick a different animal head (lobby only).
+1. **Lobby / practice:** players scan the QR code and enter a name. They can already walk around and swing in the arena, with no damage, to learn the controls. Each player also picks their **group**: **AD** (blue), **SD** (green), **CyberSec** (yellow), **PM** (white) or **Infra** (purple). Their name is shown in that colour everywhere. In the lobby they can **tap their face** to pick a different animal head, or **tap their group badge** to change group.
 2. **Start fight** (button or Space key): a 3-second countdown, then **FIGHT!**
 3. **Rounds:** each round ends when **half of the fighters who started it** are knocked out. For example, 50 players goes 50 → 25 → 13 → 7 → 4 → 2 → 1. A "Round over" screen lists who went out. Survivors are healed to full HP and spread out again, and the Game Master presses **Start round N** (or Space) when ready. The last round is 2 fighters, and the winner is the last one standing.
 4. Each fighter has **150 HP**, and a hit does 9–13 damage. A stick only hits fighters in front of you at about the same depth on the floor. Each hit knocks the target back.
@@ -33,6 +33,10 @@ To change the Game Master password, set `HOST_KEY` before starting. On Render, s
 Controls on the phone: drag on the D-pad (8 directions) and tap or hold **HIT!**. On a laptop you can also use the arrow keys/WASD and Space.
 
 **Arena view on the phone:** tap **📺 Watch arena** to see the live arena above the controls. It follows your fighter (marked **YOU**), or the action once you are knocked out. Pinch or use **− / +** to zoom, drag to look around, tap **🎯** (or double-tap) to follow yourself again, and **🗺** to see the whole arena. It only uses data while it is open.
+
+**Holding the phone sideways** switches to a controller layout: D-pad on the left, arena view in the middle, HIT! on the right.
+
+**Group legend:** the bottom-left of the big screen shows each group and how many of its players are still in (in the lobby: how many joined).
 
 **Big screen:** when 8 or fewer fighters are left, the camera zooms in on them (or on the fight closest to a K.O.). Press **Z** to turn auto-zoom off or on. Knocked-out fighters lie on the floor with a bandaged head until the round ends.
 

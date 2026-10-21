@@ -18,7 +18,7 @@ for (let i = 0; i < count; i++) {
   const name = `${NAMES[i % NAMES.length]}${i >= NAMES.length ? i : ''} 🤖`;
   const skill = 0.4 + Math.random() * 0.6; // how often it makes a good decision
   let last = '';
-  socket.on('connect', () => socket.emit('join', { id, name }, () => {}));
+  socket.on('connect', () => socket.emit('join', { id, name, group: i % 5 }, () => {}));
   setInterval(() => {
     if (!world) return;
     const meRow = world.players.find((p) => p[0] === id);
