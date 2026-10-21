@@ -40,6 +40,7 @@
       $('joinView').classList.add('hidden');
       $('padView').classList.remove('hidden');
       requestWakeLock();
+      if (store.get('bu_watch') === '1' && !$('padView').classList.contains('watching')) setWatching(true);
     });
   }
 
@@ -179,8 +180,46 @@
   hitBtn.addEventListener('pointerleave', hitUp);
 
   $('padView').addEventListener('touchstart', (e) => {
-    if (!e.target.closest('#leaveBtn')) e.preventDefault();
+    if (!e.target.closest('#tools, #avatarWrap')) e.preventDefault();
   }, { passive: false });
+
+  // ---- Pick your animal head (lobby only) ---------------------------------------------
+  let ANIMALS = [];
+  fetch('/api/info').then((r) => r.json()).then((info) => (ANIMALS = info.animals)).catch(() => {});
+  const canPick = () => me && ((me.phase === 'lobby' && me.status === 'waiting') || me.status === 'spectator');
+  function openPicker() {
+    if (!canPick() || !ANIMALS.length) return;
+    const grid = $('pickGrid');
+    grid.textContent = '';
+    ANIMALS.forEach((a, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = a;
+      if (a === me.animal) b.className = 'sel';
+      b.addEventListener('click', () => {
+        socket.emit('setAnimal', i);
+        $('picker').classList.add('hidden');
+        vibrate(20);
+      });
+      grid.append(b);
+    });
+    $('picker').classList.remove('hidden');
+  }
+  $('avatarWrap').addEventListener('click', openPicker);
+  $('pickClose').addEventListener('click', () => $('picker').classList.add('hidden'));
+
+  // ---- Arena view on the phone ----------------------------------------------------------
+  function setWatching(on) {
+    $('padView').classList.toggle('watching', on);
+    $('watchBtn').classList.toggle('on', on);
+    $('watchBtn').textContent = on ? '📺 Hide arena' : '📺 Watch arena';
+    $('watch').classList.toggle('hidden', !on);
+    // the arena view only connects while it is open, to save data
+    if (on && !$('watch').getAttribute('src')) $('watch').setAttribute('src', '/screen?watch=1');
+    if (!on) $('watch').removeAttribute('src');
+    store.set('bu_watch', on ? '1' : '0');
+  }
+  $('watchBtn').addEventListener('click', () => setWatching(!$('padView').classList.contains('watching')));
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 
   // keyboard support (handy for testing on a laptop)
@@ -226,7 +265,7 @@
       small = "You'll join the next game.\nWatch the big screen! 👀";
     } else if (me.phase === 'lobby') {
       big = 'Practice time!';
-      small = 'Move with the arrows, swing with HIT.\nNo damage until the Game Master starts.';
+      small = 'Move with the arrows, swing with HIT.\nNo damage until the Game Master starts.\nTap your face ✏️ to pick a new animal.';
     } else if (me.status === 'dead') {
       big = '💀 K.O.!';
       small = `Knocked out by ${me.killer}\nFinished #${me.place} · ${me.kills} KO${me.kills === 1 ? '' : 's'}`;
@@ -258,6 +297,9 @@ ${me.aliveCount} of ${me.total} fighters left`;
     $('status').className = warn ? 'warn' : '';
     $('controls').classList.toggle('off', !(canFight || canPractice));
     $('leaveBtn').classList.toggle('hidden', !(me.phase === 'lobby' || me.status === 'spectator'));
+    $('avatarWrap').classList.toggle('can', !!canPick());
+    $('padView').classList.toggle('dead', me.status === 'dead');
+    if (!canPick()) $('picker').classList.add('hidden');
   }
 
   // animated mini preview of your own fighter + countdown number

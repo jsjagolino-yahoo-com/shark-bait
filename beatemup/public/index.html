@@ -90,11 +90,39 @@
       touch-action: none;
     }
     #hitBtn.down { transform: translateY(6px); box-shadow: 0 2px 0 #7a0f24; }
-    #leaveBtn {
-      position: absolute; top: calc(max(10px, env(safe-area-inset-top)) + 84px); right: 14px;
+    #tools { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+    #tools button {
       background: rgba(255,255,255,0.12); color: var(--text); border: 1px solid rgba(255,255,255,0.25);
       border-radius: 999px; padding: 6px 12px; font-weight: 700; font-size: 13px;
     }
+    #tools #watchBtn.on { background: var(--violet); border-color: var(--violet); }
+    #avatarWrap { position: relative; flex-shrink: 0; }
+    #avatarWrap.can { cursor: pointer; }
+    #editBadge {
+      position: absolute; right: -4px; bottom: -4px; width: 26px; height: 26px; border-radius: 50%;
+      display: grid; place-items: center; font-size: 14px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    #avatarWrap:not(.can) #editBadge { display: none; }
+    #watch { width: 100%; flex: 1; min-height: 170px; border: 0; border-radius: 14px; background: #140c26; margin-top: 6px; }
+    #padView.watching #preview { display: none; }
+    #padView.watching.dead #preview { display: block; width: 76px; height: 76px; margin-bottom: -6px; }
+    #padView.watching #status { justify-content: flex-start; min-height: 0; }
+    #padView.watching #big { font-size: 22px; }
+    #padView.watching #small { font-size: 13px; margin-top: 2px; }
+    #padView.watching #status.warn #small { padding: 4px 10px; }
+    #picker {
+      position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px;
+      background: rgba(10,5,20,0.75); touch-action: manipulation;
+    }
+    #picker .panel { padding: 16px; width: min(380px, 100%); text-align: center; }
+    #picker h3 { margin: 0; font-size: 22px; }
+    #pickGrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 12px 0 14px; }
+    #pickGrid button {
+      font-size: 28px; aspect-ratio: 1; border-radius: 12px; padding: 0;
+      border: 2px solid transparent; background: rgba(255,255,255,0.08);
+    }
+    #pickGrid button.sel { border-color: var(--gold); background: rgba(255,204,51,0.2); }
+    #pickClose { font-size: 18px; font-weight: 900; padding: 10px 28px; border: 0; border-radius: 12px; background: var(--hot); color: #fff; }
     #conn {
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
       background: var(--hot); color: #fff; font-weight: 800; padding: 8px 16px; border-radius: 999px;
@@ -123,7 +151,7 @@
 
   <section id="padView" class="hidden">
     <div id="me">
-      <div id="avatar">🐶</div>
+      <div id="avatarWrap"><div id="avatar">🐶</div><span id="editBadge">✏️</span></div>
       <div id="meInfo">
         <div id="meName"></div>
         <div id="hpBar"><div id="hpFill"></div></div>
@@ -131,10 +159,15 @@
       </div>
       <div id="kills">0<small>KOs</small></div>
     </div>
+    <div id="tools">
+      <button id="watchBtn" type="button">📺 Watch arena</button>
+      <button id="leaveBtn" type="button">Change name</button>
+    </div>
     <div id="status">
       <canvas id="preview" width="240" height="240"></canvas>
       <div id="big"></div>
       <div id="small"></div>
+      <iframe id="watch" class="hidden" title="Arena view"></iframe>
     </div>
     <div id="controls">
       <div id="dpad">
@@ -146,9 +179,16 @@
       </div>
       <button id="hitBtn" type="button">HIT!</button>
     </div>
-    <button id="leaveBtn" type="button">Change name</button>
     <div id="conn" class="hidden">Reconnecting…</div>
   </section>
+
+  <div id="picker" class="hidden">
+    <div class="panel">
+      <h3>Pick your head</h3>
+      <div id="pickGrid"></div>
+      <button id="pickClose" type="button">Done</button>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/art.js"></script>

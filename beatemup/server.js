@@ -208,7 +208,7 @@ function knockOut(victim, killer, now) {
   };
   game.feed.unshift(entry);
   game.feed.length = Math.min(game.feed.length, FEED_MAX);
-  io.to('screens').emit('ko', { ...entry, id: victim.id });
+  io.to('screens').to('watchers').emit('ko', { ...entry, id: victim.id });
   sendMe(victim);
   checkEnd();
 }
@@ -371,8 +371,10 @@ function sendMe(p) {
   });
 }
 
-function pushScreens() {
-  io.to('screens').emit('state', screenState());
+function pushScreens(includeWatchers = true) {
+  const st = screenState();
+  io.to('screens').emit('state', st);
+  if (includeWatchers) io.to('watchers').emit('state', st);
 }
 
 function pushAll() {
@@ -397,7 +399,7 @@ setInterval(() => {
   }
   if (game.phase === 'lobby' || game.phase === 'fighting') step(dt, now);
 
-  pushScreens();
+  pushScreens(tickNo % PHONE_EVERY === 0);
   if (tickNo % PHONE_EVERY === 0) {
     for (const p of players.values()) if (p.connected) sendMe(p);
   }
@@ -466,9 +468,21 @@ io.on('connection', (socket) => {
     pushScreens();
   });
 
-  socket.on('screen:join', () => {
-    socket.join('screens');
+  // Big screens get every tick; phones watching the arena get a lighter 10 Hz feed.
+  socket.on('screen:join', (opts) => {
+    socket.join(opts && opts.watch ? 'watchers' : 'screens');
     socket.emit('state', screenState());
+  });
+
+  // Players pick their own animal head, but only before the fight starts.
+  socket.on('setAnimal', (idx) => {
+    const p = me();
+    const i = Math.floor(Number(idx));
+    if (!p || !(i >= 0 && i < ANIMALS.length)) return;
+    if (p.status !== 'waiting' && p.status !== 'spectator') return;
+    p.animal = i;
+    sendMe(p);
+    pushScreens();
   });
 
   socket.on('host:auth', (key, ack) => {

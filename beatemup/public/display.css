@@ -73,3 +73,32 @@
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
   background: var(--hot); padding: 14px 24px; border-radius: 14px; font-weight: 900; font-size: 22px;
 }
+
+/* ---- Arena view inside a player's phone (screen.html?watch=1) ---- */
+body.watch #arena { touch-action: none; }
+body.watch #hud { top: 4px; padding: 2px 10px; border-radius: 10px; }
+body.watch #hud .lbl { font-size: 8px; }
+body.watch #hLeft { font-size: 18px; }
+body.watch #hud .sub { font-size: 9px; }
+body.watch #leaders, body.watch #feed, body.watch #center.lobby, body.watch #offline { display: none !important; }
+body.watch #ringMsg { top: 48px; font-size: 11px; padding: 3px 8px; max-width: 92vw; }
+body.watch #center { padding: 8px; }
+body.watch #center.modal { background: rgba(10,5,20,0.35); }
+body.watch .resultCard { padding: 10px 14px; }
+body.watch .resultCard h1 { font-size: 24px; }
+body.watch .resultCard h2.survivors { font-size: 15px; margin-top: 6px; }
+body.watch .resultCard p, body.watch .resultCard .tag { font-size: 11px; margin: 4px 0; }
+body.watch .resultCard .chip { font-size: 10px; padding: 2px 7px; margin: 2px; }
+body.watch .trophy { font-size: 44px; }
+body.watch .countdown { margin-top: 30px; }
+body.watch .cdRound { font-size: 16px; }
+body.watch .cdNum { font-size: 64px; }
+body.watch .cdSub { font-size: 12px; }
+body.watch #toasts { bottom: 44px; }
+body.watch .toast { font-size: 11px; padding: 4px 8px; border-radius: 8px; }
+#watchBar { position: fixed; right: 6px; bottom: 6px; display: flex; gap: 5px; }
+#watchBar button {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(20,10,40,0.8); color: #fff; font-size: 17px; font-weight: 900; padding: 0;
+}
+#watchBar button.on { background: var(--violet); }

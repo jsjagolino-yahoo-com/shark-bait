@@ -12,6 +12,44 @@
     return lerp(STRIKE, IDLE, (p - 0.55) / 0.45);
   }
 
+  // Head bandage for knocked-out fighters, drawn centred on the head (emoji is ~42 units wide).
+  function bandage(ctx) {
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    // wrap around the forehead
+    ctx.rotate(-0.3);
+    ctx.fillStyle = '#f6eedb';
+    ctx.strokeStyle = '#b9a27a';
+    ctx.beginPath();
+    ctx.roundRect(-23, -17, 46, 12, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(170,140,95,0.6)';
+    for (let x = -15; x <= 15; x += 7.5) line(ctx, x, -16, x + 2, -6);
+    // little red spot where the stick landed
+    ctx.fillStyle = 'rgba(220,40,60,0.75)';
+    ctx.beginPath();
+    ctx.arc(9, -11, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // crossed plaster on the cheek
+    ctx.save();
+    ctx.translate(-11, 10);
+    ctx.fillStyle = '#f0c48a';
+    ctx.strokeStyle = '#c8955a';
+    ctx.lineWidth = 1;
+    for (const a of [0.7, -0.7]) {
+      ctx.save();
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.roundRect(-9, -2.8, 18, 5.6, 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function line(ctx, x1, y1, x2, y2) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -103,6 +141,7 @@
       ctx.font = 'bold 18px sans-serif';
       ctx.fillStyle = '#fff';
       ctx.fillText('✖ ✖', 0, -2);
+      bandage(ctx);
     }
     ctx.restore();
 

@@ -1,8 +1,15 @@
 // Big-screen arena view, shared by /screen and /host.
 (function () {
   const role = document.body.dataset.role;
+  // watch=1: the small arena view inside a player's phone (pinch/drag to look around, follows you)
+  const watch = new URLSearchParams(location.search).get('watch') === '1';
+  let myId = null;
+  if (watch) {
+    document.body.classList.add('watch');
+    try { myId = localStorage.getItem('bu_id'); } catch {}
+  }
   const socket = io({ transports: ['websocket', 'polling'] });
-  if (role === 'screen') socket.on('connect', () => socket.emit('screen:join'));
+  if (role === 'screen') socket.on('connect', () => socket.emit('screen:join', { watch }));
 
   document.body.insertAdjacentHTML('beforeend', `
     <canvas id="arena"></canvas>
@@ -14,6 +21,16 @@
     <div id="toasts"></div>
     <div id="offline" class="hidden">Connecting to game server…</div>
   `);
+  if (watch) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="watchBar">
+        <button type="button" data-cam="out" aria-label="Zoom out">−</button>
+        <button type="button" data-cam="in" aria-label="Zoom in">+</button>
+        <button type="button" data-cam="me" aria-label="Follow me">🎯</button>
+        <button type="button" data-cam="all" aria-label="Whole arena">🗺</button>
+      </div>
+    `);
+  }
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => {
@@ -45,7 +62,7 @@
     } catch {}
   });
   function tone(freq, dur, type = 'square', vol = 0.12, slide = 0) {
-    if (!audio || audio.state !== 'running') return;
+    if (watch || !audio || audio.state !== 'running') return;
     const o = audio.createOscillator();
     const g = audio.createGain();
     o.type = type;
@@ -69,7 +86,7 @@
     sx = (W * 0.94) / AW;
     ox = W * 0.03;
     floorH = Math.min(H * 0.6, AD * sx * 0.95);
-    floorTop = H - floorH - H * 0.05;
+    floorTop = watch ? (H - floorH) / 2 + H * 0.04 : H - floorH - H * 0.05;
     sy = floorH / AD;
   }
   function resize() {
@@ -118,7 +135,10 @@
         f.hitStart = now;
         addPow(f);
       }
-      if (status === 2 && f.status !== 2) f.deadStart = now;
+      if (status === 2 && f.status !== 2) {
+        f.deadStart = now;
+        f.deadRound = s.round;
+      }
       if (status !== 2) f.deadStart = -1;
       Object.assign(f, { name, tx: x, ty: y, hp, facing, status, animal, hue, swings, hits, connected, kills, place, moving });
       if (prevPhase !== s.phase && (s.phase === 'countdown' || s.phase === 'lobby')) {
@@ -364,12 +384,12 @@
     ctx.restore();
   }
 
-  function hpBar(x, y, w, hp) {
+  function hpBar(x, y, w, hp, h = 5) {
     const pct = (100 * hp) / ((state && state.arena.maxHp) || 100);
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 7);
+    ctx.fillRect(x - w / 2 - h / 5, y - h / 5, w + (2 * h) / 5, h * 1.4);
     ctx.fillStyle = pct > 50 ? '#38e08c' : pct > 25 ? '#ffcc33' : '#ff3b5c';
-    ctx.fillRect(x - w / 2, y, (w * Math.max(0, pct)) / 100, 5);
+    ctx.fillRect(x - w / 2, y, (w * Math.max(0, pct)) / 100, h);
   }
 
   // ---- Camera: zoom in on the last few fighters --------------------------------------
@@ -391,7 +411,7 @@
   let focusSince = 0;
 
   // Zoom/centre needed to frame a group of fighters (screen space, below the top counter).
-  function frame_(group) {
+  function frame_(group, minZoom = 1, maxZoom = MAX_ZOOM) {
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const f of group) {
       const px = toX(f.x), py = toY(f.y), s = figScale(f.y);
@@ -400,45 +420,155 @@
       y0 = Math.min(y0, py - 150 * s); // head, HP bar and name
       y1 = Math.max(y1, py + 15 * s);
     }
-    const pad = 70;
-    const z = Math.max(1, Math.min(MAX_ZOOM, W / (x1 - x0 + pad * 2), (H * 0.74) / (y1 - y0 + pad * 2)));
-    return { z, x: (x0 + x1) / 2, y: (y0 + y1) / 2 - (H * 0.08) / z };
+    const pad = watch ? 20 : 70;
+    const fit = Math.min(W / (x1 - x0 + pad * 2), (H * 0.74) / (y1 - y0 + pad * 2));
+    const z = Math.max(minZoom, Math.min(Math.max(maxZoom, minZoom), fit));
+    return { fit, z, x: (x0 + x1) / 2, y: (y0 + y1) / 2 - (H * 0.08) / z };
+  }
+
+  // The fighter closest to a K.O.; kept for at least 3 s so the camera doesn't jump around.
+  function pickFocus(alive) {
+    const now = performance.now();
+    const current = alive.find((f) => f.id === focusId);
+    if (!current || now - focusSince > 3000) {
+      const weakest = alive.reduce((a, b) => (b.hp < a.hp ? b : a));
+      if (!current || weakest.hp < current.hp - 10) {
+        focusId = weakest.id;
+        focusSince = now;
+      }
+    }
+    return alive.find((f) => f.id === focusId) || alive[0];
+  }
+
+  // Frame all survivors if they fit close enough, otherwise the fight where someone is closest to a K.O.
+  function autoShot(alive, minZoom, maxZoom) {
+    let shot = frame_(alive, minZoom, maxZoom);
+    if (shot.fit < Math.max(FIT_ALL_MIN_ZOOM, minZoom) && state && state.phase === 'fighting') {
+      const focus = pickFocus(alive);
+      shot = frame_(alive.filter((f) => Math.hypot(f.x - focus.x, (f.y - focus.y) * 1.5) < NEAR), minZoom, maxZoom);
+    }
+    return shot;
+  }
+
+  function moveCam(tz, tx, ty, dt) {
+    const k = Math.min(1, dt * 2.2);
+    if (!cam.x) Object.assign(cam, { x: W / 2, y: H / 2 });
+    cam.z += (tz - cam.z) * k;
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
+    clampCam();
+  }
+
+  function clampCam() {
+    cam.z = Math.max(1, Math.min(WATCH_MAX_ZOOM, cam.z));
+    const hw = W / (2 * cam.z), hh = H / (2 * cam.z);
+    cam.x = Math.max(hw, Math.min(W - hw, cam.x));
+    cam.y = Math.max(hh, Math.min(H - hh, cam.y));
   }
 
   function updateCamera(alive, dt) {
+    if (watch) return watchCamera(alive, dt);
     let tz = 1, tx = W / 2, ty = H / 2;
     const phase = state && state.phase;
     const zoomPhase = phase === 'fighting' || phase === 'roundOver' || phase === 'gameOver';
     if (zoomOn && zoomPhase && alive.length >= 1 && alive.length <= ZOOM_AT) {
-      let shot = frame_(alive);
-      if (shot.z < FIT_ALL_MIN_ZOOM && phase === 'fighting') {
-        // Too spread out to show everyone up close: follow the fight where someone is closest to a K.O.
-        const now = performance.now();
-        const current = alive.find((f) => f.id === focusId);
-        if (!current || now - focusSince > 3000) {
-          const weakest = alive.reduce((a, b) => (b.hp < a.hp ? b : a));
-          if (!current || weakest.hp < current.hp - 10) {
-            focusId = weakest.id;
-            focusSince = now;
-          }
-        }
-        const focus = alive.find((f) => f.id === focusId) || alive[0];
-        shot = frame_(alive.filter((f) => Math.hypot(f.x - focus.x, (f.y - focus.y) * 1.5) < NEAR));
-      }
+      const shot = autoShot(alive, 1, MAX_ZOOM);
       tz = shot.z;
       tx = shot.x;
       ty = shot.y;
     } else {
       focusId = null;
     }
-    const k = Math.min(1, dt * 2.2);
-    if (!cam.x) Object.assign(cam, { x: W / 2, y: H / 2 });
-    cam.z += (tz - cam.z) * k;
-    cam.x += (tx - cam.x) * k;
-    cam.y += (ty - cam.y) * k;
-    const hw = W / (2 * cam.z), hh = H / (2 * cam.z);
-    cam.x = Math.max(hw, Math.min(W - hw, cam.x));
-    cam.y = Math.max(hh, Math.min(H - hh, cam.y));
+    moveCam(tz, tx, ty, dt);
+  }
+
+  // ---- Phone arena view: follows you; pinch / drag / buttons to look around ----------------
+  const WATCH_MAX_ZOOM = watch ? 5 : MAX_ZOOM;
+  let camMode = 'follow'; // follow | manual
+  const followZoom = () => Math.max(1, Math.min(4, (H * 0.55) / Math.max(1, floorH)));
+
+  function watchCamera(alive, dt) {
+    if (camMode === 'manual') return clampCam();
+    const fz = followZoom();
+    const phase = state && state.phase;
+    const mine = myId && fighters.get(myId);
+    let tz = fz, tx = W / 2, ty = toY(AD / 2);
+    if (mine && (mine.status === 0 || mine.status === 1)) {
+      tx = toX(mine.x);
+      ty = toY(mine.y) - 50 * figScale(mine.y);
+    } else if (alive.length && (phase === 'fighting' || phase === 'roundOver' || phase === 'gameOver')) {
+      const shot = autoShot(alive, fz, 4); // you are out: follow the action instead
+      tz = shot.z;
+      tx = shot.x;
+      ty = shot.y;
+    }
+    moveCam(tz, tx, ty, dt);
+  }
+
+  function setMode(mode) {
+    camMode = mode;
+    if (watch) $('watchBar').querySelector('[data-cam="me"]').classList.toggle('on', mode === 'follow');
+  }
+
+  function zoomAt(px, py, f) {
+    const wx = cam.x + (px - W / 2) / cam.z;
+    const wy = cam.y + (py - H / 2) / cam.z;
+    cam.z = Math.max(1, Math.min(WATCH_MAX_ZOOM, cam.z * f));
+    cam.x = wx - (px - W / 2) / cam.z;
+    cam.y = wy - (py - H / 2) / cam.z;
+    setMode('manual');
+    clampCam();
+  }
+
+  if (watch) {
+    setMode('follow');
+    $('watchBar').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const what = b.dataset.cam;
+      if (what === 'in') zoomAt(W / 2, H / 2, 1.4);
+      if (what === 'out') zoomAt(W / 2, H / 2, 1 / 1.4);
+      if (what === 'me') setMode('follow');
+      if (what === 'all') {
+        setMode('manual');
+        Object.assign(cam, { z: 1, x: W / 2, y: H / 2 });
+      }
+    });
+    const pts = new Map();
+    let lastTap = 0;
+    canvas.addEventListener('pointerdown', (e) => {
+      try { canvas.setPointerCapture(e.pointerId); } catch {}
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const now = performance.now();
+      if (pts.size === 1 && now - lastTap < 300) setMode('follow'); // double-tap: back to following
+      lastTap = now;
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const prev = pts.get(e.pointerId);
+      if (!prev) return;
+      const cur = { x: e.clientX, y: e.clientY };
+      if (pts.size === 1) {
+        if (cur.x !== prev.x || cur.y !== prev.y) {
+          cam.x -= (cur.x - prev.x) / cam.z;
+          cam.y -= (cur.y - prev.y) / cam.z;
+          setMode('manual');
+          clampCam();
+        }
+      } else if (pts.size === 2) {
+        const other = [...pts.entries()].find(([id]) => id !== e.pointerId)[1];
+        const d0 = Math.hypot(prev.x - other.x, prev.y - other.y);
+        const d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
+        if (d0 > 0) zoomAt((cur.x + other.x) / 2, (cur.y + other.y) / 2, d1 / d0);
+      }
+      pts.set(e.pointerId, cur);
+    });
+    const up = (e) => pts.delete(e.pointerId);
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    }, { passive: false });
   }
 
   let last = performance.now();
@@ -457,12 +587,12 @@
       let alpha = 1;
       if (f.status === 2) {
         const age = (now - f.deadStart) / 1000;
-        if (age > 4) continue;
-        alpha = age < 2.5 ? 1 : 1 - (age - 2.5) / 1.5;
+        if (f.deadRound !== (state && state.round)) continue;
+        alpha = age < 2.5 ? 1 : Math.max(0.6, 1 - (age - 2.5) / 1.5);
       }
       list.push({ f, alpha });
     }
-    list.sort((a, b) => a.f.y - b.f.y);
+    list.sort((a, b) => (a.f.status === 2 ? 0 : 1) - (b.f.status === 2 ? 0 : 1) || a.f.y - b.f.y);
     updateCamera(list.filter((e) => e.f.status === 1).map((e) => e.f), dt);
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -492,14 +622,40 @@
       });
       if (f.status === 2) continue;
       const top = py - 122 * s;
-      if (state && state.phase !== 'lobby') hpBar(px, top, 54 * s, f.hp);
-      const fs = Math.max(10, Math.round((crowd ? 12 : 15) * (s / 0.75)));
+      if (state && state.phase !== 'lobby') hpBar(px, top, 54 * s, f.hp, watch ? 7 * s : 5);
+      // phone view: labels scale with the fighters (the camera zooms them up); big screen: readable minimum
+      const fs = watch ? 15 * s : Math.max(10, Math.round((crowd ? 12 : 15) * (s / 0.75)));
+      const gap = watch ? 4 * s : 6;
       ctx.font = `800 ${fs}px Trebuchet MS, Segoe UI, sans-serif`;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = watch ? 2.5 * s : 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-      ctx.strokeText(f.name, px, top - 6);
+      ctx.strokeText(f.name, px, top - gap);
       ctx.fillStyle = '#fff';
-      ctx.fillText(f.name, px, top - 6);
+      ctx.fillText(f.name, px, top - gap);
+    }
+
+    if (watch && myId) {
+      const mine = fighters.get(myId);
+      if (mine && (mine.status === 0 || mine.status === 1)) {
+        const px = toX(mine.x), s = figScale(mine.y);
+        const u = s; // marker size follows the fighter
+        const y = toY(mine.y) - 122 * s - 15 * u - 10 * u;
+        const bob = Math.sin(t * 6) * 3 * u;
+        ctx.fillStyle = '#ffcc33';
+        ctx.strokeStyle = '#1a1030';
+        ctx.lineWidth = 2 * u;
+        ctx.beginPath();
+        ctx.moveTo(px - 9 * u, y + bob);
+        ctx.lineTo(px + 9 * u, y + bob);
+        ctx.lineTo(px, y + 11 * u + bob);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = `900 ${14 * u}px Trebuchet MS, Segoe UI, sans-serif`;
+        ctx.lineWidth = 3 * u;
+        ctx.strokeText('YOU', px, y - 2 + bob);
+        ctx.fillText('YOU', px, y - 2 + bob);
+      }
     }
 
     // POW / KO pop-ups
@@ -521,7 +677,7 @@
       ctx.scale(pop, pop);
       const size = e.kind === 'ko' ? 54 : 26;
       ctx.font = `900 ${size * (s / 0.75)}px Impact, Trebuchet MS, sans-serif`;
-      ctx.lineWidth = 6;
+      ctx.lineWidth = watch ? 6 * (s / 0.75) : 6;
       ctx.strokeStyle = '#1a1030';
       ctx.fillStyle = e.kind === 'ko' ? '#ff3b5c' : '#ffcc33';
       const txt = e.kind === 'ko' ? 'K.O.!' : e.text;
